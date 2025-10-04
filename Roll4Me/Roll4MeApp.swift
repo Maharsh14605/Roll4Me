@@ -11,7 +11,7 @@ import SwiftUI
 struct Roll4MeApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeView()
         }
     }
 }
