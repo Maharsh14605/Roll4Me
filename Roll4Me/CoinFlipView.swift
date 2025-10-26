@@ -1,10 +1,3 @@
-//
-//  CoinFlipView.swift
-//  ToDoAppApp
-//
-//  Created by You on 24/10/25.
-//
-
 import SwiftUI
 
 struct CoinFlipView: View {
@@ -32,11 +25,12 @@ struct CoinFlipView: View {
                     .frame(width: 160, height: 160)
                     .shadow(radius: 8)
 
-                // Face label (changes after flip completes)
+                // Face label (kept readable)
                 Text(isFlipping ? "?" : (isHeads ? "Heads" : "Tails"))
-                    .font(.title)
-                    .bold()
+                    .font(.title).bold()
                     .foregroundStyle(.black.opacity(0.8))
+                    // counter-rotate the text to cancel the coin's rotation
+                    .rotation3DEffect(.degrees(-angle), axis: (x: 0, y: 1, z: 0))
             }
             .rotation3DEffect(.degrees(angle), axis: (x: 0, y: 1, z: 0)) // y-axis flip
             .animation(.easeOut(duration: 0.7), value: angle)
@@ -60,8 +54,7 @@ struct CoinFlipView: View {
         .padding()
         .navigationTitle("Coin Flip")
     }
-
-    // MARK: - Logic
+    
     private func flipCoin() {
         // small haptic
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
