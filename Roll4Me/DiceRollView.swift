@@ -31,6 +31,9 @@ struct DiceRollView: View {
     @State private var showPanel = false
     @State private var isRolling = false
 
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) private var presentationMode
+    
     var body: some View {
         ZStack {
             // Background (warm rose)
@@ -197,11 +200,30 @@ struct DiceRollView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
         }
-        .onShake { rollAllAnimated() } // keep ShakeSupport.swift in your project
-        .toolbar(.hidden, for: .navigationBar) // hide nav bar
+        .onShake { rollAllAnimated() }
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: goHome) {
+                    Image(systemName: "house.fill").font(.title3)
+                }
+                .tint(.primary)
+                .accessibilityLabel("Home")
+            }
+        }
         .onAppear { rebuildLiveDice() }
     }
-
+    
+    private func goHome() {
+        // 1) Try popping to root (works when inside UINavigationController)
+        if let nav = UIApplication.shared.topNavigationController() {
+            nav.popToRootViewController(animated: true)
+            return
+        }
+        // 2) SwiftUI fallbacks
+        dismiss()
+        presentationMode.wrappedValue.dismiss()
+    }
 
     private func rebuildLiveDice() {
         // Always start from one fair D6

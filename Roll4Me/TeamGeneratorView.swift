@@ -1,93 +1,544 @@
-//
-//  TeamGeneratorView.swift
-//  Roll4Me
-//
-//  Created by Maharsh Patel on 04/10/25.
-//
 import SwiftUI
+import UIKit
 
+// MARK: - Team Generator
 struct TeamGeneratorView: View {
-    @State private var nameInput: String = ""
-    @State private var names: [String] = []
-    @State private var numberOfTeams: Int = 2
-    @State private var generatedTeams: [[String]] = []
+    struct Person: Identifiable, Equatable { let id = UUID(); var name: String }
+
+    // Data
+    @State private var teamsCount: Int = 2
+    @State private var input: String = ""
+    @FocusState private var nameFieldFocused: Bool
+    @State private var people: [Person] = []
+
+    // Result
+    @State private var teams: [[Person]] = []
+
+    // Inline edit
+    @State private var editing: Person?
+    @State private var editText: String = ""
+
+    // Finger mode (point + radius)
+    struct TouchInfo: Equatable { var point: CGPoint; var radius: CGFloat }
+    typealias PointsDict = [Int: TouchInfo]
+    @State private var touches: PointsDict = [:]
+
+    // Bias store: personID -> [teamIndex : weight]
+    // If no entry, weight defaults to 1 for all teams.
+    @State private var biasWeights: [UUID: [Int : Int]] = [:]
+
+    // Bias editor UI
+    @State private var showBiasSheet = false
+    @State private var biasPersonID: UUID?
+    @State private var biasTeamIndex: Int = 0
+    @State private var biasValue: Int = 1
+    @State private var showNoPeopleAlert = false
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) private var presentationMode
 
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Enter Names:")
-                        .font(.headline)
+        ZStack {
+            background
+            ScrollView { content }
+        }
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(action: goHome) {
+                    Image(systemName: "house.fill").font(.title3)
+                }
+                .tint(.primary)
+                .accessibilityLabel("Home")
+            }
+        }
+        // Full-width, flush bottom bar
+        .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
+        .sheet(item: $editing) { person in
+            EditNameSheet(title: "Edit Name", text: $editText) {
+                let trimmed = editText.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                if let i = people.firstIndex(of: person) {
+                    people[i].name = trimmed
+                    teams = []
+                }
+            }
+        }
+        .sheet(isPresented: $showBiasSheet) { BiasEditor() }   // bias sheet
+        .alert("Add at least one name first", isPresented: $showNoPeopleAlert) { Button("OK", role: .cancel) {} }
+    }
 
-                    TextField("e.g. Alice, Bob", text: $nameInput)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .onSubmit {
-                            addNamesFromInput()
-                        }
+    // MARK: UI
 
-                    Button("Add Names") {
-                        addNamesFromInput()
-                    }
+    private var background: some View {
+        LinearGradient(
+            colors: [ Color(red: 214/255, green: 235/255, blue: 210/255),
+                      Color(red: 230/255, green: 245/255, blue: 225/255) ],
+            startPoint: .topLeading, endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+    }
 
-                    if !names.isEmpty {
-                        Text("Names: \(names.joined(separator: ", "))")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Teams control row
+            HStack(spacing: 12) {
+                Text("Teams")
+                    .font(.title3).bold()
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                    Stepper("Number of Teams: \(numberOfTeams)", value: $numberOfTeams, in: 2...10)
+                Button { if teamsCount > 1 { teamsCount -= 1 } }
+                label: { ControlCapsule(symbol: "minus") }
 
-                    Button("Generate Teams") {
-                        generateTeams()
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
+                Text("\(teamsCount)")
+                    .font(.title3).bold()
+                    .frame(minWidth: 44)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                    if !generatedTeams.isEmpty {
-                        ForEach(0..<generatedTeams.count, id: \.self) { index in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Team \(index + 1)")
-                                    .font(.headline)
-                                ForEach(generatedTeams[index], id: \.self) { name in
-                                    Text("• \(name)")
+                Button { teamsCount += 1 }
+                label: { ControlCapsule(symbol: "plus") }
+            }
+
+            // Input row
+            HStack(spacing: 10) {
+                TextField("Enter a Name", text: $input)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($nameFieldFocused)
+                    .submitLabel(.done)
+                    .onSubmit(addName)
+
+                Button(action: addName) { ControlCapsule(symbol: "plus") }
+                    .disabled(input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            if !people.isEmpty {
+                // Chips
+                WrapLayout(spacing: 8, runSpacing: 8) {
+                    ForEach(people) { p in
+                        Text(p.name)
+                            .font(.subheadline).bold()
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .background(Color(white: 0.96))
+                            .clipShape(Capsule())
+                            .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+                            .onTapGesture {
+                                if let i = people.firstIndex(of: p) {
+                                    people.remove(at: i)
+                                    teams = []
+                                    biasWeights[p.id] = nil
                                 }
                             }
-                            .padding(.top)
+                            .onLongPressGesture {
+                                editing = p
+                                editText = p.name
+                            }
+                    }
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 12).fill(.thinMaterial))
+
+                // Result teams
+                if !teams.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(teams.indices, id: \.self) { t in
+                            TeamCard(title: "Team \(t+1)",
+                                     names: teams[t].map(\.name),
+                                     tint: teamTint(t))
                         }
                     }
-
-                    Spacer()
                 }
-                .padding()
+            } else {
+                // Finger mode (visual only; you said no team split needed here)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Place Your Finger").font(.title2).bold()
+                    Text("Use multiple fingers. Colors distinguish teams automatically.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial)
+                        TouchCaptureView(points: $touches)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                        GeometryReader { _ in
+                            ForEach(Array(touches.keys), id: \.self) { key in
+                                if let info = touches[key] {
+                                    Circle()
+                                        .fill(circleColor(for: key))
+                                        .frame(width: info.radius, height: info.radius)
+                                        .position(info.point)
+                                        .shadow(radius: 3, y: 1)
+                                }
+                            }
+                        }
+                    }
+                    .frame(height: 260)
+                }
             }
-            .navigationTitle("Team Generator")
+        }
+        .padding(18)
+    }
+
+    // Bottom bar
+    private var bottomBar: some View {
+        ZStack {
+            // Solid, full width background
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .frame(height: 86)
+                .overlay(Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1), alignment: .top)
+                .ignoresSafeArea()
+
+            HStack {
+                HandleButton()
+
+                Spacer()
+
+                Button(action: sortNow) {
+                    Text("Sort")
+                        .font(.headline)
+                        .padding(.horizontal, 28).padding(.vertical, 10)
+                        .background(
+                            Capsule().fill(Color(white: 0.98))
+                                .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                // OPEN BIAS EDITOR
+                Button {
+                    if people.isEmpty { showNoPeopleAlert = true }
+                    else {
+                        biasPersonID = people.first?.id
+                        biasTeamIndex = 0
+                        biasValue = currentBiasValue(for: people.first!.id, team: 0)
+                        showBiasSheet = true
+                    }
+                } label: {
+                    ZStack {
+                        Circle().fill(.thinMaterial).frame(width: 36, height: 36)
+                        Image(systemName: "plus").font(.headline)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
         }
     }
 
+    // MARK: Actions
 
-    func addNamesFromInput() {
-        let newNames = nameInput
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-
-        names.append(contentsOf: newNames)
-        nameInput = ""
-        generatedTeams = []
+    private func goHome() {
+        // 1) Try popping to root (works when inside UINavigationController)
+        if let nav = UIApplication.shared.topNavigationController() {
+            nav.popToRootViewController(animated: true)
+            return
+        }
+        // 2) SwiftUI fallbacks
+        dismiss()
+        presentationMode.wrappedValue.dismiss()
     }
 
-    func generateTeams() {
-         let shuffled = names.shuffled()
-        var result: [[String]] = Array(repeating: [], count: numberOfTeams)
+    private func addName() {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let p = Person(name: trimmed)
+        people.append(p)
+        input = ""
+        teams = []
+        nameFieldFocused = true
+    }
 
-        for (index, name) in shuffled.enumerated() {
-            result[index % numberOfTeams].append(name)
+    private func sortNow() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+
+        guard !people.isEmpty else { return }
+
+        // capacity per team (balanced)
+        let n = people.count
+        var cap = Array(repeating: n / teamsCount, count: teamsCount)
+        for i in 0..<(n % teamsCount) { cap[i] += 1 }
+
+        var result = Array(repeating: [Person](), count: teamsCount)
+
+        for person in people.shuffled() {
+            let remainingTeams = (0..<teamsCount).filter { result[$0].count < cap[$0] }
+            let weights = remainingTeams.map { teamWeight(for: person.id, team: $0) }
+            let chosenIndex = weightedChoice(indices: remainingTeams, weights: weights)
+            result[chosenIndex].append(person)
         }
 
-        generatedTeams = result
+        teams = result
+    }
+
+    // Bias helpers
+    private func teamWeight(for id: UUID, team: Int) -> Int {
+        max(1, biasWeights[id]?[team] ?? 1) // default 1
+    }
+    private func currentBiasValue(for id: UUID, team: Int) -> Int {
+        biasWeights[id]?[team] ?? 1
+    }
+    private func setBias(for id: UUID, team: Int, value: Int) {
+        var map = biasWeights[id] ?? [:]
+        map[team] = max(1, min(10, value))
+        biasWeights[id] = map
+    }
+    private func weightedChoice(indices: [Int], weights: [Int]) -> Int {
+        let total = max(1, weights.reduce(0,+))
+        var r = Int.random(in: 1...total)
+        for (i, w) in weights.enumerated() {
+            r -= w
+            if r <= 0 { return indices[i] }
+        }
+        return indices.last ?? 0
+    }
+
+    // Colors
+    private func teamTint(_ i: Int) -> Color {
+        let palette: [Color] = [.blue.opacity(0.15), .purple.opacity(0.15), .teal.opacity(0.18),
+                                .orange.opacity(0.18), .pink.opacity(0.18), .green.opacity(0.18)]
+        return palette[i % palette.count]
+    }
+    private func circleColor(for key: Int) -> Color {
+        let colors: [Color] = [.gray.opacity(0.5), .blue.opacity(0.65), .red.opacity(0.65),
+                               .purple.opacity(0.65), .green.opacity(0.65), .orange.opacity(0.65)]
+        return colors[abs(key) % colors.count]
+    }
+
+    // MARK: Bias editor sheet
+    @ViewBuilder
+    private func BiasEditor() -> some View {
+        NavigationStack {
+            Form {
+                Section("Player") {
+                    Picker("Person", selection: Binding(
+                        get: { biasPersonID ?? people.first?.id },
+                        set: { biasPersonID = $0 }
+                    )) {
+                        ForEach(people) { p in
+                            Text(p.name).tag(p.id as UUID?)
+                        }
+                    }
+                }
+                Section("Team") {
+                    Picker("Team", selection: $biasTeamIndex) {
+                        ForEach(0..<teamsCount, id: \.self) { i in
+                            Text("Team \(i+1)").tag(i)
+                        }
+                    }
+                }
+                Section("Weight (1–10)") {
+                    Stepper("w \(biasValue)", value: $biasValue, in: 1...10)
+                }
+            }
+            .navigationTitle("Bias Settings")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showBiasSheet = false } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        if let id = biasPersonID {
+                            setBias(for: id, team: biasTeamIndex, value: biasValue)
+                        }
+                        showBiasSheet = false
+                    }
+                }
+            }
+            .onAppear {
+                // initialize from current person/team
+                if biasPersonID == nil { biasPersonID = people.first?.id }
+                if let id = biasPersonID { biasValue = currentBiasValue(for: id, team: biasTeamIndex) }
+            }
+            .onChange(of: biasPersonID) { id in
+                if let id { biasValue = currentBiasValue(for: id, team: biasTeamIndex) }
+            }
+            .onChange(of: biasTeamIndex) { _ in
+                if let id = biasPersonID { biasValue = currentBiasValue(for: id, team: biasTeamIndex) }
+            }
+        }
     }
 }
 
+// MARK: - Components
+
+private struct ControlCapsule: View {
+    let symbol: String
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.headline)
+            .frame(width: 36, height: 36)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
+    }
+}
+
+private struct TeamCard: View {
+    let title: String
+    let names: [String]
+    let tint: Color
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline)
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(names.indices, id: \.self) { i in Text("• \(names[i])") }
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(0.9)))
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 14).fill(tint))
+    }
+}
+
+private struct HandleButton: View {
+    var body: some View {
+        VStack(spacing: 6) {
+            Capsule().fill(Color.gray.opacity(0.35)).frame(width: 44, height: 6)
+            Capsule().fill(Color.gray.opacity(0.35)).frame(width: 32, height: 6)
+        }
+        .padding(8)
+        .background(.thinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(radius: 2, y: 1)
+    }
+}
+
+// MARK: Wrap layout
+
+struct WrapLayout: Layout {
+    var spacing: CGFloat = 8
+    var runSpacing: CGFloat = 8
+
+    init(spacing: CGFloat = 8, runSpacing: CGFloat = 8) {
+        self.spacing = spacing; self.runSpacing = runSpacing
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowH: CGFloat = 0
+        for s in subviews {
+            let sz = s.sizeThatFits(.unspecified)
+            if x + sz.width > maxWidth { x = 0; y += rowH + runSpacing; rowH = 0 }
+            rowH = max(rowH, sz.height)
+            x += sz.width + spacing
+        }
+        return CGSize(width: maxWidth, height: y + rowH)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let maxWidth = bounds.width
+        var x = bounds.minX, y = bounds.minY, rowH: CGFloat = 0
+        for s in subviews {
+            let sz = s.sizeThatFits(.unspecified)
+            if x + sz.width > bounds.minX + maxWidth { x = bounds.minX; y += rowH + runSpacing; rowH = 0 }
+            s.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(sz))
+            x += sz.width + spacing
+            rowH = max(rowH, sz.height)
+        }
+    }
+}
+
+// MARK: Edit sheet
+
+private struct EditNameSheet: View {
+    let title: String
+    @Binding var text: String
+    var onSave: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form { Section(title) { TextField("Name", text: $text).autocorrectionDisabled() } }
+                .navigationTitle(title)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Save") { onSave(); dismiss() }
+                            .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }
+        }
+    }
+}
+
+// MARK: Touch capture (bigger circles)
+
+private struct TouchCaptureView: UIViewRepresentable {
+    @Binding var points: TeamGeneratorView.PointsDict
+
+    func makeUIView(context: Context) -> TouchView {
+        let v = TouchView()
+        v.onUpdate = { pts in DispatchQueue.main.async { self.points = pts } }
+        return v
+    }
+    func updateUIView(_ uiView: TouchView, context: Context) {}
+
+    final class TouchView: UIView {
+        var onUpdate: ((TeamGeneratorView.PointsDict) -> Void)?
+        private var pts: TeamGeneratorView.PointsDict = [:]
+
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            isMultipleTouchEnabled = true
+            backgroundColor = .clear
+        }
+        required init?(coder: NSCoder) {
+            super.init(coder: coder)
+            isMultipleTouchEnabled = true
+            backgroundColor = .clear
+        }
+
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            update(touches, removing: false)
+        }
+        override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches, removing: false) }
+        override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches, removing: true) }
+        override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches, removing: true) }
+
+        private func update(_ touches: Set<UITouch>, removing: Bool) {
+            for t in touches {
+                let key = t.hash
+                if removing {
+                    pts.removeValue(forKey: key)
+                } else {
+                    let p = t.location(in: self)
+                    let r = max(54, t.majorRadius.isNormal ? t.majorRadius * 2.2 : 56) // nice big touch dots
+                    pts[key] = TeamGeneratorView.TouchInfo(point: p, radius: r)
+                }
+            }
+            onUpdate?(pts)
+        }
+    }
+}
+
+// MARK: UIKit helper to pop to root
+extension UIApplication {
+    func topNavigationController() -> UINavigationController? {
+        guard let scene = connectedScenes.compactMap({ $0 as? UIWindowScene }).first else { return nil }
+        guard let window = scene.windows.first(where: { $0.isKeyWindow }) ?? scene.windows.first else { return nil }
+        return window.rootViewController?.findNav()
+    }
+}
+private extension UIViewController {
+    func findNav() -> UINavigationController? {
+        if let nav = self as? UINavigationController { return nav }
+        if let tab = self as? UITabBarController { return tab.selectedViewController?.findNav() }
+        if let presented = presentedViewController { return presented.findNav() }
+        for child in children {
+            if let nav = child.findNav() { return nav }
+        }
+        return navigationController
+    }
+}
+
+#Preview {
+    NavigationStack { TeamGeneratorView() }
+}
