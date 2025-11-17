@@ -11,7 +11,7 @@ import SwiftUI
 struct Roll4MeWatch_Watch_AppApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomeWatchView()
         }
     }
 }
