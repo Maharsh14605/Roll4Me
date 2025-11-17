@@ -9,9 +9,16 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        // For now, the watch app just shows the dice roller.
-        // Later you can add a menu here to navigate to other tools.
-        DiceRollWatchView()
+        NavigationStack {
+            List {
+                NavigationLink("Dice Roll") { DiceRollWatchView() }
+                NavigationLink("Coin Flip") { CoinFlipWatchView() }
+                NavigationLink("Spinner") { SpinnerWatchView() }
+                NavigationLink("Random Order") { RandomOrderWatchView() }
+                NavigationLink("Random Person") { RandomPersonWatchView() }
+            }
+            .navigationTitle("Roll4Me")
+        }
     }
 }
 

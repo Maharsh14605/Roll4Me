@@ -1,60 +1,46 @@
-//
-//  DiceRollWatchView.swift
-//  Roll4Me
-//
-//  Created by advait modh on 16/11/25.
-//
-
 import SwiftUI
 import WatchKit
 
-// MARK: - Models
+// MARK: - Model
 
 private struct LiveDie: Identifiable, Equatable {
     let id = UUID()
     var sides: Int
     var value: Int
     var weighted: Bool = false
-    var spinToken = UUID()          // change to trigger animation
+    var spinToken = UUID()
 }
 
-// MARK: - Main View
+// MARK: - View
 
 struct DiceRollWatchView: View {
-    // Dice on screen (starts with one fair D6)
     @State private var liveDice: [LiveDie] = [LiveDie(sides: 6, value: 1, weighted: false)]
 
-    // Weighted die configuration (for optional second die)
     @State private var hasWeightedDie = false
-    @State private var weightSteps = [1, 1, 1, 1, 1, 1]  // per-face weights
+    @State private var weightSteps = [1,1,1,1,1,1]
 
-    // Temp edits in "+" panel
     @State private var tempHasWeighted = false
-    @State private var tempWeightSteps = [1, 1, 1, 1, 1, 1]
+    @State private var tempWeightSteps = [1,1,1,1,1,1]
 
-    // UI state
     @State private var latestTotal = 1
     @State private var showPanel = false
     @State private var isRolling = false
 
     var body: some View {
         ZStack {
-            // Background (same warm-ish tone as iOS, just a bit softer)
             Color(red: 214/255, green: 166/255, blue: 162/255)
                 .opacity(0.9)
                 .ignoresSafeArea()
 
-            VStack(spacing: 10) {
-                // Top result
+            VStack(spacing: 8) {
                 Text("Result: \(latestTotal)")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
-                    .padding(.top, 6)
+                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .padding(.top, 4)
 
-                // Arc label + dice
                 ZStack {
-                    ArcText(
+                    WatchArcText(
                         text: "Shake  to  Roll",
-                        radius: 70,
+                        radius: 60,
                         startAngle: -140,
                         endAngle: -40,
                         followTangent: true
@@ -64,50 +50,42 @@ struct DiceRollWatchView: View {
                     let columns: [GridItem] =
                         liveDice.count == 1
                         ? [GridItem(.flexible())]
-                        : [GridItem(.flexible(), spacing: 16),
-                           GridItem(.flexible(), spacing: 16)]
+                        : [GridItem(.flexible(), spacing: 12),
+                           GridItem(.flexible(), spacing: 12)]
 
-                    LazyVGrid(columns: columns, alignment: .center, spacing: 16) {
+                    LazyVGrid(columns: columns, alignment: .center, spacing: 12) {
                         ForEach(liveDice.indices, id: \.self) { i in
                             DieView(
                                 sides: liveDice[i].sides,
                                 value: liveDice[i].value,
                                 spinToken: liveDice[i].spinToken
                             )
-                            .frame(width: 80, height: 80)
+                            .frame(width: 70, height: 70)
                             .onTapGesture { rollSingleAnimated(index: i) }
-                            .accessibilityElement()
-                            .accessibilityLabel("D\(liveDice[i].sides) showing \(liveDice[i].value)")
-                            .accessibilityHint("Double-tap to roll this die")
-                            .accessibilityAddTraits(.isButton)
                         }
                     }
                     .padding(.horizontal, 10)
-                    .padding(.top, 40)
+                    .padding(.top, 30)
                 }
                 .frame(maxHeight: .infinity)
 
                 bottomBar
             }
 
-            // "+" panel
             if showPanel {
-                SpeechBubble {
+                WatchSpeechBubble {
                     VStack(spacing: 8) {
                         HStack {
                             Button {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-                                    showPanel = false   // cancel, discard temp
+                                    showPanel = false
                                 }
                             } label: {
                                 Image(systemName: "xmark")
                             }
 
                             Spacer()
-
-                            Text("Weighted Die")
-                                .font(.headline)
-
+                            Text("Weighted Die").font(.headline)
                             Spacer()
 
                             Button {
@@ -122,16 +100,16 @@ struct DiceRollWatchView: View {
                             }
                         }
 
-                        Toggle("Add second die (weighted)", isOn: $tempHasWeighted)
+                        Toggle("Add second die", isOn: $tempHasWeighted)
 
                         if tempHasWeighted {
                             VStack(spacing: 6) {
                                 ForEach(1...6, id: \.self) { face in
                                     HStack {
                                         Text("\(face)")
-                                            .frame(width: 18, alignment: .leading)
+                                            .frame(width: 16, alignment: .leading)
                                         Stepper(value: $tempWeightSteps[face-1], in: 0...10) {
-                                            Text("Weight \(tempWeightSteps[face-1])")
+                                            Text("w \(tempWeightSteps[face-1])")
                                         }
                                         .labelsHidden()
 
@@ -149,8 +127,7 @@ struct DiceRollWatchView: View {
                                     .buttonStyle(.bordered)
 
                                     Spacer()
-
-                                    Text("Sum: \(tempWeightSteps.reduce(0,+))")
+                                    Text("Sum \(tempWeightSteps.reduce(0,+))")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
@@ -162,32 +139,27 @@ struct DiceRollWatchView: View {
                 .frame(width: 210)
                 .transition(.scale.combined(with: .opacity))
                 .padding(.trailing, 10)
-                .padding(.bottom, 74)
+                .padding(.bottom, 60)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
         }
         .onAppear { rebuildLiveDice() }
+        .navigationTitle("Dice Roll")
     }
-
-    // MARK: - Bottom bar
 
     private var bottomBar: some View {
         VStack(spacing: 4) {
-            Rectangle()
-                .fill(Color.black.opacity(0.12))
-                .frame(height: 1)
+            Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1)
 
             HStack {
-                HandleButton()
+                WatchHandleButton()
 
                 Spacer()
 
-                Button {
-                    rollAllAnimated()
-                } label: {
+                Button { rollAllAnimated() } label: {
                     Text("Roll")
                         .font(.headline)
-                        .padding(.horizontal, 18)
+                        .padding(.horizontal, 16)
                         .padding(.vertical, 6)
                         .background(
                             Capsule()
@@ -209,30 +181,22 @@ struct DiceRollWatchView: View {
                     }
                 } label: {
                     ZStack {
-                        Circle().fill(.thinMaterial).frame(width: 30, height: 30)
+                        Circle().fill(.thinMaterial).frame(width: 28, height: 28)
                         Image(systemName: "plus").font(.headline)
                     }
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
             .padding(.bottom, 4)
-            .background(
-                Color.yellow.opacity(0.22)
-                    .ignoresSafeArea(edges: .bottom)
-            )
+            .background(Color.yellow.opacity(0.22).ignoresSafeArea(edges: .bottom))
         }
     }
 
-    // MARK: - Logic (same as iOS, no UIKit)
+    // MARK: Logic
 
-    private func hapticMedium() {
-        WKInterfaceDevice.current().play(.directionUp)
-    }
-
-    private func hapticLight() {
-        WKInterfaceDevice.current().play(.click)
-    }
+    private func hapticMedium() { WKInterfaceDevice.current().play(.directionUp) }
+    private func hapticLight()  { WKInterfaceDevice.current().play(.click) }
 
     private func rebuildLiveDice() {
         var arr: [LiveDie] = [LiveDie(sides: 6, value: 1, weighted: false)]
@@ -240,7 +204,7 @@ struct DiceRollWatchView: View {
             arr.append(LiveDie(sides: 6, value: 1, weighted: true))
         }
         liveDice = arr
-        latestTotal = liveDice.map(\.value).reduce(0, +)
+        latestTotal = liveDice.map(\.value).reduce(0,+)
     }
 
     private func rollAllAnimated() {
@@ -253,7 +217,7 @@ struct DiceRollWatchView: View {
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.95) {
-            latestTotal = liveDice.map(\.value).reduce(0, +)
+            latestTotal = liveDice.map(\.value).reduce(0,+)
             isRolling = false
         }
     }
@@ -262,18 +226,18 @@ struct DiceRollWatchView: View {
         guard liveDice.indices.contains(index) else { return }
         let final = rollValue(for: liveDice[index])
 
-        liveDice[index].spinToken = UUID()   // trigger animation
+        liveDice[index].spinToken = UUID()
 
         Task { @MainActor in
             let ticks = 10 + Int.random(in: 0...6)
             for _ in 0..<ticks {
                 liveDice[index].value = rollValue(for: liveDice[index], preview: true)
-                try? await Task.sleep(nanoseconds: 55_000_000) // 55 ms
+                try? await Task.sleep(nanoseconds: 55_000_000)
             }
             liveDice[index].value = final
             hapticLight()
             if updateTotalAtEnd {
-                latestTotal = liveDice.map(\.value).reduce(0, +)
+                latestTotal = liveDice.map(\.value).reduce(0,+)
             }
         }
     }
@@ -298,7 +262,7 @@ struct DiceRollWatchView: View {
             acc += weights[i]
             if r < acc { return i + 1 }
         }
-        return weights.count   // fallback
+        return weights.count
     }
 }
 
@@ -306,9 +270,7 @@ struct DiceRollWatchView: View {
     DiceRollWatchView()
 }
 
-//////////////////////////////////////////////////////////
-// MARK: - Shared subviews (identical to iOS version)
-//////////////////////////////////////////////////////////
+// MARK: - DieView & Pips (shared with all dice)
 
 private struct DieView: View {
     let sides: Int
@@ -329,7 +291,8 @@ private struct DieView: View {
                     .fill(
                         LinearGradient(
                             colors: [Color.white, Color(red: 0.93, green: 0.96, blue: 0.98)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
                     )
                     .overlay(
@@ -416,74 +379,5 @@ private struct PipsSix: View {
             }
         }
         .allowsHitTesting(false)
-    }
-}
-
-private struct ArcText: View {
-    let text: String
-    let radius: CGFloat
-    let startAngle: Double
-    let endAngle: Double
-    var followTangent: Bool = true
-
-    var body: some View {
-        ZStack {
-            ForEach(Array(text.enumerated()), id: \.offset) { (i, ch) in
-                let t = Double(i) / Double(max(text.count - 1, 1))
-                let angle = startAngle + (endAngle - startAngle) * t
-                let rad = angle * .pi / 180
-                let x = cos(rad) * radius
-                let y = sin(rad) * radius
-
-                Text(String(ch))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .rotationEffect(.degrees(followTangent ? angle + 90 : 0))
-                    .offset(x: x, y: y)
-            }
-        }
-        .frame(width: radius * 2, height: radius * 2)
-    }
-}
-
-private struct SpeechBubble<Content: View>: View {
-    @ViewBuilder var content: Content
-    var body: some View {
-        VStack(spacing: 0) {
-            content
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.black.opacity(0.18), lineWidth: 1))
-                .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
-
-            Triangle()
-                .fill(.ultraThinMaterial)
-                .frame(width: 18, height: 10)
-                .overlay(Triangle().stroke(Color.black.opacity(0.18), lineWidth: 1))
-                .offset(x: 50, y: -1)
-        }
-    }
-}
-
-private struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: rect.midX, y: rect.maxY))
-        p.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        p.closeSubpath()
-        return p
-    }
-}
-
-private struct HandleButton: View {
-    var body: some View {
-        VStack(spacing: 4) {
-            Capsule().fill(Color.gray.opacity(0.35)).frame(width: 32, height: 4)
-            Capsule().fill(Color.gray.opacity(0.35)).frame(width: 24, height: 4)
-        }
-        .padding(6)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .shadow(radius: 1, y: 1)
     }
 }
