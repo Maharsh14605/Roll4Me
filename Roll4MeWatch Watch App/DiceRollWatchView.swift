@@ -1,28 +1,34 @@
 //
-//  DiceRollView.swift
+//  DiceRollWatchView.swift
 //  Roll4Me
+//
+//  Created by advait modh on 16/11/25.
 //
 
 import SwiftUI
+import WatchKit
 
+// MARK: - Models
 
 private struct LiveDie: Identifiable, Equatable {
     let id = UUID()
     var sides: Int
     var value: Int
     var weighted: Bool = false
-    var spinToken = UUID() // change to trigger animation
+    var spinToken = UUID()          // change to trigger animation
 }
 
-struct DiceRollView: View {
+// MARK: - Main View
+
+struct DiceRollWatchView: View {
     // Dice on screen (starts with one fair D6)
     @State private var liveDice: [LiveDie] = [LiveDie(sides: 6, value: 1, weighted: false)]
 
-    // Weighted die configuration (for the optional second die)
+    // Weighted die configuration (for optional second die)
     @State private var hasWeightedDie = false
-    @State private var weightSteps = [1, 1, 1, 1, 1, 1] // per-face weights 1..6
+    @State private var weightSteps = [1, 1, 1, 1, 1, 1]  // per-face weights
 
-    // Temp edits shown in the "+" panel (cancel-safe)
+    // Temp edits in "+" panel
     @State private var tempHasWeighted = false
     @State private var tempWeightSteps = [1, 1, 1, 1, 1, 1]
 
@@ -31,148 +37,107 @@ struct DiceRollView: View {
     @State private var showPanel = false
     @State private var isRolling = false
 
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.presentationMode) private var presentationMode
-    
     var body: some View {
         ZStack {
-            // Background (warm rose)
-            Color(red: 214/255, green: 166/255, blue: 162/255).opacity(0.9)
+            // Background (same warm-ish tone as iOS, just a bit softer)
+            Color(red: 214/255, green: 166/255, blue: 162/255)
+                .opacity(0.9)
                 .ignoresSafeArea()
 
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 // Top result
                 Text("Result: \(latestTotal)")
-                    .font(.system(size: 44, weight: .heavy, design: .rounded))
-                    .padding(.top, 12)
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .padding(.top, 6)
 
-                // Arc label + dice area
+                // Arc label + dice
                 ZStack {
                     ArcText(
                         text: "Shake  to  Roll",
-                        radius: 130,
+                        radius: 70,
                         startAngle: -140,
                         endAngle: -40,
                         followTangent: true
                     )
                     .foregroundStyle(.black.opacity(0.75))
 
-                    // Center when only one die
                     let columns: [GridItem] =
                         liveDice.count == 1
                         ? [GridItem(.flexible())]
-                        : [GridItem(.flexible(), spacing: 24),
-                           GridItem(.flexible(), spacing: 24)]
+                        : [GridItem(.flexible(), spacing: 16),
+                           GridItem(.flexible(), spacing: 16)]
 
-                    LazyVGrid(columns: columns, alignment: .center, spacing: 24) {
+                    LazyVGrid(columns: columns, alignment: .center, spacing: 16) {
                         ForEach(liveDice.indices, id: \.self) { i in
                             DieView(
                                 sides: liveDice[i].sides,
                                 value: liveDice[i].value,
                                 spinToken: liveDice[i].spinToken
                             )
-                            .frame(width: 140, height: 140)
-                            .onTapGesture { rollSingleAnimated(index: i) } // tap rolls one
+                            .frame(width: 80, height: 80)
+                            .onTapGesture { rollSingleAnimated(index: i) }
                             .accessibilityElement()
                             .accessibilityLabel("D\(liveDice[i].sides) showing \(liveDice[i].value)")
                             .accessibilityHint("Double-tap to roll this die")
                             .accessibilityAddTraits(.isButton)
                         }
                     }
-                    .padding(.horizontal, 30)
-                    .padding(.top, 60)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 40)
                 }
                 .frame(maxHeight: .infinity)
 
-                // Bottom bar
-                HStack {
-                    HandleButton()
-
-                    Button { rollAllAnimated() } label: {
-                        Text("Roll")
-                            .font(.headline)
-                            .padding(.horizontal, 26)
-                            .padding(.vertical, 10)
-                            .background(
-                                Capsule()
-                                    .fill(Color(red: 214/255, green: 166/255, blue: 162/255))
-                                    .overlay(Capsule().stroke(.black.opacity(0.15), lineWidth: 1))
-                            )
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        // open panel with temp copies (so Cancel restores)
-                        tempHasWeighted = hasWeightedDie
-                        tempWeightSteps = weightSteps
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-                            showPanel = true
-                        }
-                    } label: {
-                        ZStack {
-                            Circle().fill(.thinMaterial).frame(width: 36, height: 36)
-                            Image(systemName: "plus").font(.headline)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Options")
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(
-                    ZStack {
-                        Color(UIColor.systemYellow).opacity(0.22)
-                        Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1).offset(y: -24)
-                    }
-                    .ignoresSafeArea(edges: .bottom)
-                )
+                bottomBar
             }
 
-            // "+" Panel: add one weighted die + set weights
+            // "+" panel
             if showPanel {
                 SpeechBubble {
-                    VStack(spacing: 10) {
+                    VStack(spacing: 8) {
                         HStack {
                             Button {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-                                    showPanel = false // cancel (discard temp)
+                                    showPanel = false   // cancel, discard temp
                                 }
-                            } label: { Image(systemName: "xmark") }
+                            } label: {
+                                Image(systemName: "xmark")
+                            }
 
                             Spacer()
-                            Text("Weighted Die").font(.headline)
+
+                            Text("Weighted Die")
+                                .font(.headline)
+
                             Spacer()
 
                             Button {
-                                // apply temp → real, rebuild dice set
                                 hasWeightedDie = tempHasWeighted
                                 weightSteps = tempWeightSteps
                                 rebuildLiveDice()
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                                     showPanel = false
                                 }
-                            } label: { Text("Done").bold() }
+                            } label: {
+                                Text("Done").bold()
+                            }
                         }
 
                         Toggle("Add second die (weighted)", isOn: $tempHasWeighted)
-                            .tint(.blue)
 
                         if tempHasWeighted {
-                            // Simple per-face weights using steppers (0..10)
-                            VStack(spacing: 8) {
+                            VStack(spacing: 6) {
                                 ForEach(1...6, id: \.self) { face in
                                     HStack {
                                         Text("\(face)")
-                                            .frame(width: 22, alignment: .leading)
+                                            .frame(width: 18, alignment: .leading)
                                         Stepper(value: $tempWeightSteps[face-1], in: 0...10) {
-                                            Text("Weight: \(tempWeightSteps[face-1])")
-                                                .frame(minWidth: 110, alignment: .leading)
+                                            Text("Weight \(tempWeightSteps[face-1])")
                                         }
-                                        Spacer()
-                                        // live normalized probability
+                                        .labelsHidden()
+
                                         let p = normalizedWeights(from: tempWeightSteps)[face-1]
                                         Text(String(format: "%.0f%%", p * 100))
-                                            .font(.caption)
+                                            .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
                                 }
@@ -184,51 +149,93 @@ struct DiceRollView: View {
                                     .buttonStyle(.bordered)
 
                                     Spacer()
+
                                     Text("Sum: \(tempWeightSteps.reduce(0,+))")
-                                        .font(.caption)
+                                        .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
                             }
                         }
                     }
-                    .padding(10)
+                    .padding(8)
                 }
-                .frame(width: 260)
+                .frame(width: 210)
                 .transition(.scale.combined(with: .opacity))
-                .padding(.trailing, 16)
-                .padding(.bottom, 92)
+                .padding(.trailing, 10)
+                .padding(.bottom, 74)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-            }
-        }
-        .onShake { rollAllAnimated() }
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: goHome) {
-                    Image(systemName: "house.fill").font(.title3)
-                }
-                .tint(.primary)
-                .accessibilityLabel("Home")
             }
         }
         .onAppear { rebuildLiveDice() }
     }
-    
-    private func goHome() {
-        // 1) Try popping to root (works when inside UINavigationController)
-        if let nav = UIApplication.shared.topNavigationController() {
-            nav.popToRootViewController(animated: true)
-            return
+
+    // MARK: - Bottom bar
+
+    private var bottomBar: some View {
+        VStack(spacing: 4) {
+            Rectangle()
+                .fill(Color.black.opacity(0.12))
+                .frame(height: 1)
+
+            HStack {
+                HandleButton()
+
+                Spacer()
+
+                Button {
+                    rollAllAnimated()
+                } label: {
+                    Text("Roll")
+                        .font(.headline)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(Color(red: 214/255, green: 166/255, blue: 162/255))
+                                .overlay(
+                                    Capsule().stroke(Color.black.opacity(0.15), lineWidth: 1)
+                                )
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Button {
+                    tempHasWeighted = hasWeightedDie
+                    tempWeightSteps = weightSteps
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                        showPanel = true
+                    }
+                } label: {
+                    ZStack {
+                        Circle().fill(.thinMaterial).frame(width: 30, height: 30)
+                        Image(systemName: "plus").font(.headline)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 8)
+            .padding(.bottom, 4)
+            .background(
+                Color.yellow.opacity(0.22)
+                    .ignoresSafeArea(edges: .bottom)
+            )
         }
-        // 2) SwiftUI fallbacks
-        dismiss()
-        presentationMode.wrappedValue.dismiss()
+    }
+
+    // MARK: - Logic (same as iOS, no UIKit)
+
+    private func hapticMedium() {
+        WKInterfaceDevice.current().play(.directionUp)
+    }
+
+    private func hapticLight() {
+        WKInterfaceDevice.current().play(.click)
     }
 
     private func rebuildLiveDice() {
-        // Always start from one fair D6
         var arr: [LiveDie] = [LiveDie(sides: 6, value: 1, weighted: false)]
-        // Add optional second (weighted) D6
         if hasWeightedDie {
             arr.append(LiveDie(sides: 6, value: 1, weighted: true))
         }
@@ -239,9 +246,11 @@ struct DiceRollView: View {
     private func rollAllAnimated() {
         guard !isRolling else { return }
         isRolling = true
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        hapticMedium()
 
-        for i in liveDice.indices { rollSingleAnimated(index: i, updateTotalAtEnd: false) }
+        for i in liveDice.indices {
+            rollSingleAnimated(index: i, updateTotalAtEnd: false)
+        }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.95) {
             latestTotal = liveDice.map(\.value).reduce(0, +)
@@ -253,10 +262,8 @@ struct DiceRollView: View {
         guard liveDice.indices.contains(index) else { return }
         let final = rollValue(for: liveDice[index])
 
-        // start a quick “tumble”
-        liveDice[index].spinToken = UUID()
+        liveDice[index].spinToken = UUID()   // trigger animation
 
-        // fast value cycling -> final
         Task { @MainActor in
             let ticks = 10 + Int.random(in: 0...6)
             for _ in 0..<ticks {
@@ -264,7 +271,7 @@ struct DiceRollView: View {
                 try? await Task.sleep(nanoseconds: 55_000_000) // 55 ms
             }
             liveDice[index].value = final
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            hapticLight()
             if updateTotalAtEnd {
                 latestTotal = liveDice.map(\.value).reduce(0, +)
             }
@@ -285,21 +292,23 @@ struct DiceRollView: View {
     }
 
     private func weightedSample(weights: [Double]) -> Int {
-        // weights.count == 6, sum ~ 1
         let r = Double.random(in: 0..<1)
         var acc = 0.0
-        for i in 0..<6 {
+        for i in 0..<weights.count {
             acc += weights[i]
             if r < acc { return i + 1 }
         }
-        return 6 // fallback
+        return weights.count   // fallback
     }
 }
 
 #Preview {
-    NavigationStack { DiceRollView() }
+    DiceRollWatchView()
 }
 
+//////////////////////////////////////////////////////////
+// MARK: - Shared subviews (identical to iOS version)
+//////////////////////////////////////////////////////////
 
 private struct DieView: View {
     let sides: Int
@@ -316,7 +325,6 @@ private struct DieView: View {
             let s = min(geo.size.width, geo.size.height)
 
             ZStack {
-                // Body
                 RoundedRectangle(cornerRadius: s * 0.18, style: .continuous)
                     .fill(
                         LinearGradient(
@@ -326,11 +334,12 @@ private struct DieView: View {
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: s * 0.18, style: .continuous)
-                            .stroke(Color(.sRGB, red: 0.10, green: 0.16, blue: 0.28, opacity: 1), lineWidth: s * 0.06)
+                            .stroke(Color(.sRGB, red: 0.10, green: 0.16, blue: 0.28, opacity: 1),
+                                    lineWidth: s * 0.06)
                     )
-                    .shadow(color: .black.opacity(0.15), radius: s * 0.06, x: 0, y: s * 0.05)
+                    .shadow(color: .black.opacity(0.15),
+                            radius: s * 0.06, x: 0, y: s * 0.05)
 
-                // For D6 draw pips; otherwise show number
                 if sides == 6 {
                     PipsSix(value: value)
                         .padding(s * 0.18)
@@ -342,7 +351,6 @@ private struct DieView: View {
             }
             .frame(width: s, height: s)
         }
-        // Roll animation (tumble + bounce, ends upright)
         .scaleEffect(scale)
         .rotation3DEffect(.degrees(rotX), axis: (x: 1, y: 0, z: 0))
         .rotation3DEffect(.degrees(rotY), axis: (x: 0, y: 1, z: 0))
@@ -370,7 +378,6 @@ private struct DieView: View {
     }
 }
 
-
 private struct PipsSix: View {
     let value: Int
 
@@ -380,12 +387,10 @@ private struct PipsSix: View {
             let h = geo.size.height
             let dot = min(w, h) * 0.18
 
-            // Closure (not a nested func) inside ViewBuilder
             let pos: (CGFloat, CGFloat) -> CGPoint = { x, y in
                 CGPoint(x: x * w, y: y * h)
             }
 
-            // Grid points (0..1)
             let TL = pos(0.20, 0.20), TR = pos(0.80, 0.20)
             let CL = pos(0.20, 0.50), CC = pos(0.50, 0.50), CR = pos(0.80, 0.50)
             let BL = pos(0.20, 0.80), BR = pos(0.80, 0.80)
@@ -397,7 +402,7 @@ private struct PipsSix: View {
                 case 3: return [TL, CC, BR]
                 case 4: return [TL, TR, BL, BR]
                 case 5: return [TL, TR, CC, BL, BR]
-                default: return [TL, CL, BL, TR, CR, BR] // 6
+                default: return [TL, CL, BL, TR, CR, BR]
                 }
             }()
 
@@ -413,7 +418,6 @@ private struct PipsSix: View {
         .allowsHitTesting(false)
     }
 }
-
 
 private struct ArcText: View {
     let text: String
@@ -432,7 +436,7 @@ private struct ArcText: View {
                 let y = sin(rad) * radius
 
                 Text(String(ch))
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
                     .rotationEffect(.degrees(followTangent ? angle + 90 : 0))
                     .offset(x: x, y: y)
             }
@@ -455,7 +459,7 @@ private struct SpeechBubble<Content: View>: View {
                 .fill(.ultraThinMaterial)
                 .frame(width: 18, height: 10)
                 .overlay(Triangle().stroke(Color.black.opacity(0.18), lineWidth: 1))
-                .offset(x: 62, y: -1)
+                .offset(x: 50, y: -1)
         }
     }
 }
@@ -473,13 +477,13 @@ private struct Triangle: Shape {
 
 private struct HandleButton: View {
     var body: some View {
-        VStack(spacing: 6) {
-            Capsule().fill(Color.gray.opacity(0.35)).frame(width: 44, height: 6)
-            Capsule().fill(Color.gray.opacity(0.35)).frame(width: 32, height: 6)
+        VStack(spacing: 4) {
+            Capsule().fill(Color.gray.opacity(0.35)).frame(width: 32, height: 4)
+            Capsule().fill(Color.gray.opacity(0.35)).frame(width: 24, height: 4)
         }
-        .padding(8)
+        .padding(6)
         .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .shadow(radius: 2, y: 1)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .shadow(radius: 1, y: 1)
     }
 }

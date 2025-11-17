@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		92328E722ECADBAF00DBA0F8 /* Roll4MeWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 92328E682ECADBAC00DBA0F8 /* Roll4MeWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		012AF1422E919FA3005E8520 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +25,34 @@
 			remoteGlobalIDString = 012AF1332E919FA2005E8520;
 			remoteInfo = Roll4Me;
 		};
+		92328E702ECADBAF00DBA0F8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 012AF12C2E919FA2005E8520 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92328E672ECADBAC00DBA0F8;
+			remoteInfo = "Roll4MeWatch Watch App";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		92328E732ECADBAF00DBA0F8 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				92328E722ECADBAF00DBA0F8 /* Roll4MeWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		012AF1342E919FA2005E8520 /* Roll4Me.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Roll4Me.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		012AF1412E919FA3005E8520 /* Roll4MeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Roll4MeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		012AF14B2E919FA3005E8520 /* Roll4MeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Roll4MeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		92328E682ECADBAC00DBA0F8 /* Roll4MeWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Roll4MeWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,6 +69,11 @@
 		012AF14E2E919FA3005E8520 /* Roll4MeUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Roll4MeUITests;
+			sourceTree = "<group>";
+		};
+		92328E692ECADBAC00DBA0F8 /* Roll4MeWatch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Roll4MeWatch Watch App";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,6 +100,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		92328E652ECADBAC00DBA0F8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -78,6 +116,7 @@
 				012AF1362E919FA2005E8520 /* Roll4Me */,
 				012AF1442E919FA3005E8520 /* Roll4MeTests */,
 				012AF14E2E919FA3005E8520 /* Roll4MeUITests */,
+				92328E692ECADBAC00DBA0F8 /* Roll4MeWatch Watch App */,
 				012AF1352E919FA2005E8520 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +127,7 @@
 				012AF1342E919FA2005E8520 /* Roll4Me.app */,
 				012AF1412E919FA3005E8520 /* Roll4MeTests.xctest */,
 				012AF14B2E919FA3005E8520 /* Roll4MeUITests.xctest */,
+				92328E682ECADBAC00DBA0F8 /* Roll4MeWatch Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,10 +142,12 @@
 				012AF1302E919FA2005E8520 /* Sources */,
 				012AF1312E919FA2005E8520 /* Frameworks */,
 				012AF1322E919FA2005E8520 /* Resources */,
+				92328E732ECADBAF00DBA0F8 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				92328E712ECADBAF00DBA0F8 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				012AF1362E919FA2005E8520 /* Roll4Me */,
@@ -163,6 +205,28 @@
 			productReference = 012AF14B2E919FA3005E8520 /* Roll4MeUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		92328E672ECADBAC00DBA0F8 /* Roll4MeWatch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 92328E762ECADBAF00DBA0F8 /* Build configuration list for PBXNativeTarget "Roll4MeWatch Watch App" */;
+			buildPhases = (
+				92328E642ECADBAC00DBA0F8 /* Sources */,
+				92328E652ECADBAC00DBA0F8 /* Frameworks */,
+				92328E662ECADBAC00DBA0F8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				92328E692ECADBAC00DBA0F8 /* Roll4MeWatch Watch App */,
+			);
+			name = "Roll4MeWatch Watch App";
+			packageProductDependencies = (
+			);
+			productName = "Roll4MeWatch Watch App";
+			productReference = 92328E682ECADBAC00DBA0F8 /* Roll4MeWatch Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -170,7 +234,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1640;
+				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					012AF1332E919FA2005E8520 = {
@@ -183,6 +247,9 @@
 					012AF14A2E919FA3005E8520 = {
 						CreatedOnToolsVersion = 16.4;
 						TestTargetID = 012AF1332E919FA2005E8520;
+					};
+					92328E672ECADBAC00DBA0F8 = {
+						CreatedOnToolsVersion = 26.0.1;
 					};
 				};
 			};
@@ -203,6 +270,7 @@
 				012AF1332E919FA2005E8520 /* Roll4Me */,
 				012AF1402E919FA3005E8520 /* Roll4MeTests */,
 				012AF14A2E919FA3005E8520 /* Roll4MeUITests */,
+				92328E672ECADBAC00DBA0F8 /* Roll4MeWatch Watch App */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +291,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		012AF1492E919FA3005E8520 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92328E662ECADBAC00DBA0F8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +328,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		92328E642ECADBAC00DBA0F8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +347,11 @@
 			isa = PBXTargetDependency;
 			target = 012AF1332E919FA2005E8520 /* Roll4Me */;
 			targetProxy = 012AF14C2E919FA3005E8520 /* PBXContainerItemProxy */;
+		};
+		92328E712ECADBAF00DBA0F8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92328E672ECADBAC00DBA0F8 /* Roll4MeWatch Watch App */;
+			targetProxy = 92328E702ECADBAF00DBA0F8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -397,7 +484,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = Z9J5FCJ325;
+				DEVELOPMENT_TEAM = LU33PPKMKZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -425,7 +512,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = Z9J5FCJ325;
+				DEVELOPMENT_TEAM = LU33PPKMKZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -518,6 +605,72 @@
 			};
 			name = Release;
 		};
+		92328E742ECADBAF00DBA0F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LU33PPKMKZ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Roll4MeWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.CommandLineTool.Roll4Me;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.CommandLineTool.Roll4Me.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		92328E752ECADBAF00DBA0F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LU33PPKMKZ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Roll4MeWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.CommandLineTool.Roll4Me;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.CommandLineTool.Roll4Me.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -553,6 +706,15 @@
 			buildConfigurations = (
 				012AF15C2E919FA3005E8520 /* Debug */,
 				012AF15D2E919FA3005E8520 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		92328E762ECADBAF00DBA0F8 /* Build configuration list for PBXNativeTarget "Roll4MeWatch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				92328E742ECADBAF00DBA0F8 /* Debug */,
+				92328E752ECADBAF00DBA0F8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
