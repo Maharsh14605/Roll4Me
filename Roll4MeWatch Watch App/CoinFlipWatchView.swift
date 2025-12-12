@@ -77,7 +77,6 @@ struct CoinFlipWatchView: View {
                 }
             }
         }
-//        .navigationTitle("Coin Flip")
     }
 
     private func flip() {

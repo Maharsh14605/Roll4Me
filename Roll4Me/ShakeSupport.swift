@@ -1,4 +1,3 @@
-// ShakeSupport.swift
 import SwiftUI
 import UIKit
 

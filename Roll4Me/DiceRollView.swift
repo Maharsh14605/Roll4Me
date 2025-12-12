@@ -1,10 +1,5 @@
-//
-//  DiceRollView.swift
-//  Roll4Me
-//
-
 import SwiftUI
-import AVFoundation   // ⬅️ for sound
+import AVFoundation
 
 private struct LiveDie: Identifiable, Equatable {
     let id = UUID()
@@ -22,7 +17,7 @@ struct DiceRollView: View {
     @State private var hasWeightedDie = false
     @State private var weightSteps = [1, 1, 1, 1, 1, 1] // per-face weights 1..6
 
-    // Temp edits shown in the "+" panel (cancel-safe)
+    // Temp edits shown in the "+" panel
     @State private var tempHasWeighted = false
     @State private var tempWeightSteps = [1, 1, 1, 1, 1, 1]
 
@@ -94,7 +89,7 @@ struct DiceRollView: View {
                 }
                 .frame(maxHeight: .infinity)
 
-                // MARK: - Bottom bar
+                // Bottom bar
                 VStack(spacing: 8) {
                     Rectangle()
                         .fill(Color.black.opacity(0.12))
@@ -135,7 +130,7 @@ struct DiceRollView: View {
                         Spacer()
 
                         Button {
-                            // open weighted die panel with temp copies (so Cancel restores)
+                            // open weighted die panel with temp copies
                             tempHasWeighted = hasWeightedDie
                             tempWeightSteps = weightSteps
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
@@ -169,7 +164,7 @@ struct DiceRollView: View {
                         HStack {
                             Button {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-                                    showPanel = false // cancel (discard temp)
+                                    showPanel = false
                                 }
                             } label: { Image(systemName: "xmark") }
 
@@ -247,16 +242,16 @@ struct DiceRollView: View {
                     .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
-        // Shake support (still works, but rolls with haptics only when enabled)
+        // Shake support
         .onShake {
             if soundOn { DiceSoundPlayer.shared.playRoll(volume: volume) }
             rollAllAnimated()
         }
-        // ⬇️ home button removed: let default back button handle navigation
+        // home button removed: let default back button handle navigation
         .onAppear { rebuildLiveDice() }
     }
 
-    // MARK: - Dice logic
+    // Dice logic
 
     private func rebuildLiveDice() {
         var arr: [LiveDie] = [LiveDie(sides: 6, value: 1, weighted: false)]
@@ -336,7 +331,7 @@ struct DiceRollView: View {
     NavigationStack { DiceRollView() }
 }
 
-// MARK: - Settings panel used on Dice screen
+// Settings panel used on Dice screen
 
 private struct DiceSettingsPanel: View {
     @Binding var isPresented: Bool
@@ -421,7 +416,7 @@ private struct SettingsToggleChip: View {
     }
 }
 
-// MARK: - Sound helper
+// Sound helper
 
 final class DiceSoundPlayer {
     static let shared = DiceSoundPlayer()
@@ -444,7 +439,7 @@ final class DiceSoundPlayer {
         player.play()
     }
 }
-// MARK: - Die + Helpers (unchanged below)
+// Die + Helpers (unchanged below)
 
 private struct DieView: View {
     let sides: Int

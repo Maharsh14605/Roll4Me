@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 import AVFoundation
 
-// MARK: - Team Generator
+// Team Generator
 struct TeamGeneratorView: View {
     struct Person: Identifiable, Equatable { let id = UUID(); var name: String }
 
@@ -90,7 +90,7 @@ struct TeamGeneratorView: View {
         }
     }
 
-    // MARK: UI
+    // UI
 
     private var background: some View {
         LinearGradient(
@@ -221,7 +221,7 @@ struct TeamGeneratorView: View {
         .padding(18)
     }
 
-    // MARK: Bottom bar – full width & under home indicator
+    // Bottom bar full width & under home indicator
     private var bottomBar: some View {
         VStack(spacing: 0) {
             Rectangle()
@@ -280,7 +280,7 @@ struct TeamGeneratorView: View {
         .ignoresSafeArea(edges: .bottom)
     }
 
-    // MARK: Actions
+    // Actions
 
     private func goHome() {
         if let nav = UIApplication.shared.topNavigationController() {
@@ -311,7 +311,7 @@ struct TeamGeneratorView: View {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         }
 
-        // 🔊 play team sort sound
+        // play team sort sound
         if soundOn {
             TeamSortSoundPlayer.shared.play(volume: volume)
         }
@@ -376,7 +376,7 @@ struct TeamGeneratorView: View {
         ]
     }
 
-    // MARK: Bias editor sheet
+    // Bias editor sheet
     @ViewBuilder
     private func BiasEditor() -> some View {
         NavigationStack {
@@ -428,7 +428,7 @@ struct TeamGeneratorView: View {
     }
 }
 
-// MARK: - Components
+// Components
 
 private struct ControlCapsule: View {
     let symbol: String
@@ -473,7 +473,7 @@ private struct HandleButton: View {
     }
 }
 
-// MARK: Settings panel + chips
+// Settings panel + chips
 
 private struct TeamSettingsPanel: View {
     @Binding var isPresented: Bool
@@ -554,7 +554,7 @@ private struct SettingsToggleChip: View {
     }
 }
 
-// MARK: Wrap layout
+// Wrap layout
 
 struct WrapLayout: Layout {
     var spacing: CGFloat = 8
@@ -589,7 +589,7 @@ struct WrapLayout: Layout {
     }
 }
 
-// MARK: Edit sheet
+// Edit sheet
 
 private struct EditNameSheet: View {
     let title: String
@@ -612,7 +612,7 @@ private struct EditNameSheet: View {
     }
 }
 
-// MARK: Touch capture (bigger circles, less “jittery” removal)
+// Touch capture (bigger circles, less “jittery” removal)
 
 private struct TouchCaptureView: UIViewRepresentable {
     @Binding var points: TeamGeneratorView.PointsDict
@@ -696,7 +696,7 @@ private struct TouchCaptureView: UIViewRepresentable {
     }
 }
 
-// MARK: UIKit helper to pop to root
+// UIKit helper to pop to root
 extension UIApplication {
     func topNavigationController() -> UINavigationController? {
         guard let scene = connectedScenes.compactMap({ $0 as? UIWindowScene }).first else { return nil }
@@ -716,7 +716,7 @@ private extension UIViewController {
     }
 }
 
-// MARK: - Team sort sound
+// Team sort sound
 
 final class TeamSortSoundPlayer {
     static let shared = TeamSortSoundPlayer()

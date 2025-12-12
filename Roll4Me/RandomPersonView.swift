@@ -79,7 +79,7 @@ struct RandomPersonView: View {
         }
     }
 
-    // MARK: - Pieces
+    // Pieces
 
     private var background: some View {
         LinearGradient(
@@ -139,7 +139,7 @@ struct RandomPersonView: View {
         .frame(height: 550)
     }
 
-    // MARK: - Bottom bar
+    // Bottom bar
 
     private var bottomBar: some View {
         VStack(spacing: 0) {
@@ -253,7 +253,7 @@ struct RandomPersonView: View {
         revealedIDs = Set(winners)
         finalSelectedID = winners.last   // last one gets the red + pulse
 
-        // 🔊 play pop sound (no delay needed)
+        //  play pop sound
         if soundOn {
             RandomPersonSoundPlayer.shared.play(volume: volume)
         }
@@ -283,7 +283,7 @@ struct RandomPersonView: View {
     }
 }
 
-// MARK: - Settings panel
+// Settings panel
 
 private struct RandomPersonSettingsPanel: View {
     @Binding var isPresented: Bool
@@ -365,7 +365,7 @@ private struct RandomPersonToggleChip: View {
     }
 }
 
-// MARK: - Touch capture view
+// Touch capture view
 
 private struct FingerTouchCaptureView: UIViewRepresentable {
     @Binding var points: [Int: CGPoint]
@@ -428,7 +428,7 @@ private struct FingerTouchCaptureView: UIViewRepresentable {
     }
 }
 
-// MARK: - Small shared views
+// Small shared views
 
 private struct HandleButton: View {
     var body: some View {
@@ -454,7 +454,7 @@ private struct Triangle: Shape {
     }
 }
 
-// MARK: - Random person sound
+// Random person sound
 
 final class RandomPersonSoundPlayer {
     static let shared = RandomPersonSoundPlayer()
@@ -477,7 +477,6 @@ final class RandomPersonSoundPlayer {
         player.play()
     }
 }
-// MARK: - Preview
 
 #Preview {
     RandomPersonView()

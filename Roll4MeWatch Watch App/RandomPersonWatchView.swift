@@ -55,7 +55,7 @@ struct RandomPersonWatchView: View {
                    value: showChooserBubble)
     }
 
-    // MARK: - Circles
+    // Circles
 
     private func fingerCircle(for index: Int) -> some View {
         let isHighlighted = highlightedIndex == index
@@ -82,7 +82,7 @@ struct RandomPersonWatchView: View {
                        value: isChosen)
     }
 
-    // MARK: - Bottom Bar
+    // Bottom Bar
 
     private var bottomBar: some View {
         VStack(spacing: 4) {
@@ -133,7 +133,7 @@ struct RandomPersonWatchView: View {
         }
     }
 
-    // MARK: - Bubble to adjust counts
+    // Bubble to adjust counts
 
     private var chooserBubble: some View {
         ZStack {
@@ -216,7 +216,7 @@ struct RandomPersonWatchView: View {
         }
     }
 
-    // MARK: - Selection Logic
+    // Selection Logic
 
     private func startSelection() {
         guard !isSelecting, fingerCount > 0 else { return }
@@ -253,7 +253,7 @@ struct RandomPersonWatchView: View {
     }
 }
 
-// MARK: - Small helpers (watch-safe, prefixed to avoid name clashes)
+// Small helpers (watch-safe, prefixed to avoid name clashes)
 
 fileprivate struct RPMiniHandle: View {
     var body: some View {

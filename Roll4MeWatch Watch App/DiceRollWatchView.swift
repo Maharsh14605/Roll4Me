@@ -1,7 +1,7 @@
 import SwiftUI
 import WatchKit
 
-// MARK: - Model
+// Model
 
 private struct LiveDie: Identifiable, Equatable {
     let id = UUID()
@@ -11,7 +11,7 @@ private struct LiveDie: Identifiable, Equatable {
     var spinToken = UUID()
 }
 
-// MARK: - View
+// View
 
 struct DiceRollWatchView: View {
     @State private var liveDice: [LiveDie] = [LiveDie(sides: 6, value: 1, weighted: false)]
@@ -144,7 +144,6 @@ struct DiceRollWatchView: View {
             }
         }
         .onAppear { rebuildLiveDice() }
-//        .navigationTitle("Dice Roll")
     }
 
     private var bottomBar: some View {
@@ -193,7 +192,7 @@ struct DiceRollWatchView: View {
         }
     }
 
-    // MARK: Logic
+    // Logic
 
     private func hapticMedium() { WKInterfaceDevice.current().play(.directionUp) }
     private func hapticLight()  { WKInterfaceDevice.current().play(.click) }
@@ -270,7 +269,7 @@ struct DiceRollWatchView: View {
     DiceRollWatchView()
 }
 
-// MARK: - DieView & Pips (shared with all dice)
+// DieView & Pips (shared with all dice)
 
 private struct DieView: View {
     let sides: Int

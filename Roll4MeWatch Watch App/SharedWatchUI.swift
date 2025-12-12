@@ -1,10 +1,3 @@
-//
-//  SharedWatchUI.swift
-//  Roll4Me
-//
-//  Created by advait modh on 16/11/25.
-//
-
 import SwiftUI
 
 // Little grab-handle style button like iOS bottom bar

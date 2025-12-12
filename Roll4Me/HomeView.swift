@@ -1,8 +1,3 @@
-//
-//  HomeView.swift
-//  Roll4Me
-//
-
 import SwiftUI
 
 struct HomeView: View {
@@ -73,7 +68,7 @@ struct HomeView: View {
                 }
             }
 
-            // handle button – toggles panel
+            // handle button toggles panel
             Button {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                     showPanel.toggle()
@@ -108,7 +103,7 @@ struct HomeView: View {
         .toolbar {
             ToolbarItem(placement: .principal) { EmptyView() }
         }
-        // MARK: Background music ONLY on Home
+        // Background music only on Home
         .onAppear {
             BackgroundMusicPlayer.shared.update(soundOn: soundOn, volume: volume)
         }
@@ -143,7 +138,7 @@ private struct ToolTileLarge: View {
         .frame(width: size, height: size)
     }
 }
-// MARK: - Slim Access Panel (Volume + Haptics + Sound)
+// Slim Access Panel (Volume + Haptics + Sound)
 
 private struct AccessPanel: View {
     @Binding var isPresented: Bool
@@ -204,7 +199,7 @@ private struct AccessPanel: View {
     }
 }
 
-// Reusable chip – optional onToggle for custom behavior (used for Sound)
+// Reusable chip 
 private struct ToggleChip: View {
     let title: String
     @Binding var isOn: Bool

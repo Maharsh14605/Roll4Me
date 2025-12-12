@@ -2,7 +2,7 @@ import SwiftUI
 import AVFoundation
 import Speech
 
-// MARK: - Models
+// Models
 private struct SpinOption: Identifiable, Hashable {
     let id = UUID()
     var title: String
@@ -48,7 +48,7 @@ struct SpinnerView: View {
     // Haptic tick timer while spinning
     @State private var spinHapticTimer: Timer? = nil
 
-    // SPEECH (disabled in preview)
+    // SPEECH
     @State private var speechAllowed = false
     private let speech = SFSpeechRecognizer()
 
@@ -129,7 +129,7 @@ struct SpinnerView: View {
         }
     }
 
-    // MARK: Bottom bar
+    // Bottom bar
     private var bottomBar: some View {
         VStack(spacing: 8) {
             Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1)
@@ -182,7 +182,7 @@ struct SpinnerView: View {
         .ignoresSafeArea(edges: .bottom)
     }
 
-    // MARK: Actions
+    // Actions
 
     private func goHome() {
         if let nav = UIApplication.shared.topNavigationController() {
@@ -193,7 +193,7 @@ struct SpinnerView: View {
         presentationMode.wrappedValue.dismiss()
     }
 
-    // MARK: Editor bubble
+    // Editor bubble
     private var editorBubble: some View {
         SpeechBubble {
             VStack(spacing: 10) {
@@ -283,7 +283,7 @@ struct SpinnerView: View {
         .transition(.scale.combined(with: .opacity))
     }
 
-    // MARK: Build slices – one contiguous wedge per option
+    // Build slices – one contiguous wedge per option
     private func buildSlices() -> [WheelSlice] {
         let valid = options
             .map { SpinOption(title: $0.title.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -338,7 +338,7 @@ struct SpinnerView: View {
         return slices
     }
 
-    // MARK: Spin
+    // Spin
     private func spin(by swipeVelocity: Double = 0) {
         guard !spinning else { return }
         let slices = buildSlices()
@@ -351,7 +351,7 @@ struct SpinnerView: View {
         spinning = true
         selected = ""
 
-        // 🎵 play spinner sound
+        // play spinner sound
         if soundOn {
             SpinnerSoundPlayer.shared.playSpin(volume: volume)
         }
@@ -422,7 +422,7 @@ struct SpinnerView: View {
         }
     }
 
-    // MARK: Input helpers
+    // Input helpers
     private func addFromBulk() {
         let parts = bulkInput
             .split(whereSeparator: { $0 == "," || $0 == "\n" })
@@ -434,7 +434,7 @@ struct SpinnerView: View {
         inputFocused = false
     }
 
-    // MARK: Speech (guarded)
+    // Speech
     private func requestSpeechIfNeeded() {
         SFSpeechRecognizer.requestAuthorization { auth in
             Task { @MainActor in
@@ -470,7 +470,7 @@ struct SpinnerView: View {
     }
 }
 
-// MARK: - Settings panel for spinner
+// Settings panel for spinner
 private struct SpinnerSettingsPanel: View {
     @Binding var isPresented: Bool
 
@@ -550,7 +550,7 @@ private struct SettingsToggleChip: View {
     }
 }
 
-// MARK: - Wheel rendering
+// Wheel rendering
 private struct WheelView: View {
     let slices: [WheelSlice]
 
@@ -652,7 +652,7 @@ private struct WheelView: View {
     }
 }
 
-// MARK: - Arc text
+// Arc text
 private struct ArcText: View {
     let text: String
     let radius: CGFloat
@@ -680,7 +680,7 @@ private struct ArcText: View {
     }
 }
 
-// MARK: - Small shared views
+// Small shared views
 private struct HandleButton: View {
     var body: some View {
         VStack(spacing: 6) {
@@ -724,7 +724,7 @@ private struct Triangle: Shape {
     }
 }
 
-// MARK: - Spinner sound helper
+// Spinner sound helper
 final class SpinnerSoundPlayer {
     static let shared = SpinnerSoundPlayer()
     private var player: AVAudioPlayer?
@@ -749,5 +749,5 @@ final class SpinnerSoundPlayer {
     }
 }
 
-// MARK: - Preview
+// Preview
 #Preview { NavigationStack { SpinnerView() } }

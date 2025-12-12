@@ -74,7 +74,7 @@ struct RandomOrderView: View {
         }
     }
 
-    // MARK: - Subviews
+    // Subviews
 
     private var background: some View {
         LinearGradient(
@@ -193,7 +193,7 @@ struct RandomOrderView: View {
         .frame(height: 260)
     }
 
-    // MARK: - Bottom bar
+    // Bottom bar
 
     private var bottomBar: some View {
         VStack(spacing: 0) {
@@ -237,7 +237,7 @@ struct RandomOrderView: View {
         .ignoresSafeArea(edges: .bottom)
     }
 
-    // MARK: - Actions
+    // Actions
 
     private func addCurrent() {
         let trimmed = itemInput.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -266,7 +266,7 @@ struct RandomOrderView: View {
     }
 }
 
-// MARK: - Settings panel for RandomOrderView
+// Settings panel for RandomOrderView
 
 private struct RandomOrderSettingsPanel: View {
     @Binding var isPresented: Bool
@@ -348,7 +348,7 @@ private struct RandomOrderToggleChip: View {
     }
 }
 
-// MARK: - Shared small views
+// Shared small views
 
 private struct HandleButton: View {
     var body: some View {
@@ -394,7 +394,7 @@ private struct EditNameSheet: View {
     }
 }
 
-// MARK: - Sound helper for RandomOrderView
+// Sound helper for RandomOrderView
 
 final class RandomOrderSoundPlayer {
     static let shared = RandomOrderSoundPlayer()
@@ -418,8 +418,6 @@ final class RandomOrderSoundPlayer {
         player.play()
     }
 }
-
-// MARK: - Preview
 
 #Preview {
     NavigationStack {

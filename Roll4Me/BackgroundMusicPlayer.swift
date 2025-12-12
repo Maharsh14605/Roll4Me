@@ -4,7 +4,7 @@ final class BackgroundMusicPlayer {
     static let shared = BackgroundMusicPlayer()
 
     private var player: AVAudioPlayer?
-    private(set) var currentVolume: Double = 0.7   // <— remember last volume
+    private(set) var currentVolume: Double = 0.7   // remember last volume
 
     private init() {}
 
@@ -17,7 +17,7 @@ final class BackgroundMusicPlayer {
         }
     }
 
-    // Used when ducking / restoring from DiceSoundPlayer
+    // Used when ducking/restoring from DiceSoundPlayer
     func setVolume(_ volume: Double) {
         let clamped = max(0.0, min(volume, 1.0))
         currentVolume = clamped

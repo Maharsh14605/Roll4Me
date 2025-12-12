@@ -1,13 +1,8 @@
-//
-//  CoinFlipView.swift
-//  Roll4Me
-//
-
 import SwiftUI
 import CoreMotion
 import AVFoundation
 
-// MARK: - CoinFlipView
+// CoinFlipView
 struct CoinFlipView: View {
     // Result state
     @State private var isHeads = true
@@ -78,7 +73,7 @@ struct CoinFlipView: View {
                 }
                 .frame(maxHeight: .infinity)
 
-                // Bottom sticky bar (flush to safe area)
+                // Bottom sticky bar
                 bottomBar
             }
 
@@ -114,7 +109,7 @@ struct CoinFlipView: View {
                 }
                 .frame(maxWidth: 360)
                 .padding(.trailing, 18)
-                .padding(.bottom, 102) // sits above bottom bar
+                .padding(.bottom, 102)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .transition(.scale.combined(with: .opacity))
             }
@@ -145,7 +140,7 @@ struct CoinFlipView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // MARK: - Bottom Bar
+    // Bottom Bar
     private var bottomBar: some View {
         VStack(spacing: 10) {
             Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1)
@@ -204,7 +199,7 @@ struct CoinFlipView: View {
         .ignoresSafeArea(edges: .bottom)
     }
 
-    // MARK: Actions
+    // Actions
 
     private func goHome() {
         if let nav = UIApplication.shared.topNavigationController() {
@@ -215,7 +210,7 @@ struct CoinFlipView: View {
         presentationMode.wrappedValue.dismiss()
     }
 
-    // MARK: - Weighted flip + animation + sound
+    // Weighted flip + animation + sound
     private func flipCoinWeighted() {
         if hapticsOn {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -246,7 +241,7 @@ struct CoinFlipView: View {
     }
 }
 
-// MARK: - Tilt detector
+// Tilt detector
 final class TiltFlipDetector: ObservableObject {
     private let manager = CMMotionManager()
     private var lastTriggerTime = Date.distantPast
@@ -286,7 +281,7 @@ final class TiltFlipDetector: ObservableObject {
     }
 }
 
-// MARK: - Coin SFX
+// Coin SFX
 
 final class CoinSoundPlayer {
     static let shared = CoinSoundPlayer()
@@ -310,7 +305,7 @@ final class CoinSoundPlayer {
     }
 }
 
-// MARK: - Settings panel shared UI
+// Settings panel shared UI
 
 private struct CoinSettingsPanel: View {
     @Binding var isPresented: Bool
@@ -393,7 +388,7 @@ private struct SettingsToggleChip: View {
     }
 }
 
-// MARK: - Reusable UI
+// Reusable UI
 
 private struct HandleButton: View {
     var body: some View {

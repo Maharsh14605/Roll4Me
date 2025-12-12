@@ -45,7 +45,7 @@ struct HomeWatchView: View {
         }
     }
 
-    // MARK: - Row helper
+    // Row helper
 
     private func menuRow(title: String,
                          subtitle: String,
