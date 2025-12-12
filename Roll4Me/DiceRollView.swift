@@ -4,7 +4,7 @@
 //
 
 import SwiftUI
-
+import AVFoundation   // ⬅️ for sound
 
 private struct LiveDie: Identifiable, Equatable {
     let id = UUID()
@@ -28,12 +28,18 @@ struct DiceRollView: View {
 
     // UI state
     @State private var latestTotal = 1
-    @State private var showPanel = false
+    @State private var showPanel = false           // weighted die bubble
+    @State private var showSettingsPanel = false   // bottom settings sheet
     @State private var isRolling = false
+
+    // Global settings shared with Home panel
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentationMode) private var presentationMode
-    
+
     var body: some View {
         ZStack {
             // Background (warm rose)
@@ -72,7 +78,11 @@ struct DiceRollView: View {
                                 spinToken: liveDice[i].spinToken
                             )
                             .frame(width: 140, height: 140)
-                            .onTapGesture { rollSingleAnimated(index: i) } // tap rolls one
+                            .onTapGesture {
+                                // single die tap -> sound + roll
+                                if soundOn { DiceSoundPlayer.shared.playRoll(volume: volume) }
+                                rollSingleAnimated(index: i)
+                            }
                             .accessibilityElement()
                             .accessibilityLabel("D\(liveDice[i].sides) showing \(liveDice[i].value)")
                             .accessibilityHint("Double-tap to roll this die")
@@ -84,48 +94,72 @@ struct DiceRollView: View {
                 }
                 .frame(maxHeight: .infinity)
 
-                // Bottom bar
-                HStack {
-                    HandleButton()
+                // MARK: - Bottom bar
+                VStack(spacing: 8) {
+                    Rectangle()
+                        .fill(Color.black.opacity(0.12))
+                        .frame(height: 1)
 
-                    Button { rollAllAnimated() } label: {
-                        Text("Roll")
-                            .font(.headline)
-                            .padding(.horizontal, 26)
-                            .padding(.vertical, 10)
-                            .background(
-                                Capsule()
-                                    .fill(Color(red: 214/255, green: 166/255, blue: 162/255))
-                                    .overlay(Capsule().stroke(.black.opacity(0.15), lineWidth: 1))
-                            )
-                    }
-                    .buttonStyle(.plain)
+                    HStack {
+                        // Left handle opens settings panel
+                        Button {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                                showSettingsPanel.toggle()
+                            }
+                        } label: {
+                            HandleButton()
+                        }
 
-                    Button {
-                        // open panel with temp copies (so Cancel restores)
-                        tempHasWeighted = hasWeightedDie
-                        tempWeightSteps = weightSteps
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
-                            showPanel = true
+                        Spacer()
+
+                        Button {
+                            // main roll -> sound + roll
+                            if soundOn { DiceSoundPlayer.shared.playRoll(volume: volume) }
+                            rollAllAnimated()
+                        } label: {
+                            Text("Roll")
+                                .font(.headline)
+                                .padding(.horizontal, 32)
+                                .padding(.vertical, 12)
+                                .background(
+                                    Capsule()
+                                        .fill(Color(red: 214/255, green: 166/255, blue: 162/255))
+                                        .overlay(
+                                            Capsule()
+                                                .stroke(.black.opacity(0.15), lineWidth: 1)
+                                        )
+                                )
                         }
-                    } label: {
-                        ZStack {
-                            Circle().fill(.thinMaterial).frame(width: 36, height: 36)
-                            Image(systemName: "plus").font(.headline)
+                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        Button {
+                            // open weighted die panel with temp copies (so Cancel restores)
+                            tempHasWeighted = hasWeightedDie
+                            tempWeightSteps = weightSteps
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                                showPanel = true
+                            }
+                        } label: {
+                            ZStack {
+                                Circle().fill(.thinMaterial).frame(width: 40, height: 40)
+                                Image(systemName: "plus").font(.headline)
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Options")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Options")
+                    .padding(.horizontal, 18)
+                    .padding(.top, 6)
+
+                    Text("Shake or tap a die to roll")
+                        .font(.subheadline)
+                        .foregroundStyle(.black.opacity(0.55))
+                        .padding(.bottom, 8)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(
-                    ZStack {
-                        Color(UIColor.systemYellow).opacity(0.22)
-                        Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1).offset(y: -24)
-                    }
-                    .ignoresSafeArea(edges: .bottom)
-                )
+                .background(Color(UIColor.systemYellow).opacity(0.22))
+                .ignoresSafeArea(edges: .bottom)
             }
 
             // "+" Panel: add one weighted die + set weights
@@ -199,36 +233,33 @@ struct DiceRollView: View {
                 .padding(.bottom, 92)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
             }
-        }
-        .onShake { rollAllAnimated() }
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: goHome) {
-                    Image(systemName: "house.fill").font(.title3)
-                }
-                .tint(.primary)
-                .accessibilityLabel("Home")
+
+            // Settings panel (same toggles as Home, smaller)
+            if showSettingsPanel {
+                DiceSettingsPanel(isPresented: $showSettingsPanel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
+                    .overlay(Divider(), alignment: .top)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
+        // Shake support (still works, but rolls with haptics only when enabled)
+        .onShake {
+            if soundOn { DiceSoundPlayer.shared.playRoll(volume: volume) }
+            rollAllAnimated()
+        }
+        // ⬇️ home button removed: let default back button handle navigation
         .onAppear { rebuildLiveDice() }
     }
-    
-    private func goHome() {
-        // 1) Try popping to root (works when inside UINavigationController)
-        if let nav = UIApplication.shared.topNavigationController() {
-            nav.popToRootViewController(animated: true)
-            return
-        }
-        // 2) SwiftUI fallbacks
-        dismiss()
-        presentationMode.wrappedValue.dismiss()
-    }
+
+    // MARK: - Dice logic
 
     private func rebuildLiveDice() {
-        // Always start from one fair D6
         var arr: [LiveDie] = [LiveDie(sides: 6, value: 1, weighted: false)]
-        // Add optional second (weighted) D6
         if hasWeightedDie {
             arr.append(LiveDie(sides: 6, value: 1, weighted: true))
         }
@@ -239,9 +270,13 @@ struct DiceRollView: View {
     private func rollAllAnimated() {
         guard !isRolling else { return }
         isRolling = true
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        if hapticsOn {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        }
 
-        for i in liveDice.indices { rollSingleAnimated(index: i, updateTotalAtEnd: false) }
+        for i in liveDice.indices {
+            rollSingleAnimated(index: i, updateTotalAtEnd: false)
+        }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.95) {
             latestTotal = liveDice.map(\.value).reduce(0, +)
@@ -264,7 +299,9 @@ struct DiceRollView: View {
                 try? await Task.sleep(nanoseconds: 55_000_000) // 55 ms
             }
             liveDice[index].value = final
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            if hapticsOn {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
             if updateTotalAtEnd {
                 latestTotal = liveDice.map(\.value).reduce(0, +)
             }
@@ -285,7 +322,6 @@ struct DiceRollView: View {
     }
 
     private func weightedSample(weights: [Double]) -> Int {
-        // weights.count == 6, sum ~ 1
         let r = Double.random(in: 0..<1)
         var acc = 0.0
         for i in 0..<6 {
@@ -300,6 +336,115 @@ struct DiceRollView: View {
     NavigationStack { DiceRollView() }
 }
 
+// MARK: - Settings panel used on Dice screen
+
+private struct DiceSettingsPanel: View {
+    @Binding var isPresented: Bool
+
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    @State private var dragOffset: CGFloat = 0
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(width: 44, height: 5)
+                .padding(.top, 8)
+
+            HStack(spacing: 12) {
+                Image(systemName: "speaker.wave.2.fill")
+                Slider(value: $volume, in: 0...1)
+                    .disabled(!soundOn)
+                    .opacity(soundOn ? 1.0 : 0.4)
+            }
+            .padding(.horizontal, 18)
+
+            HStack(spacing: 14) {
+                SettingsToggleChip(title: "Haptics", isOn: $hapticsOn)
+
+                SettingsToggleChip(title: "Sound", isOn: $soundOn) { newValue in
+                    if !newValue {
+                        volume = 0
+                    }
+                }
+            }
+            .padding(.horizontal, 18)
+
+            Spacer(minLength: 8)
+        }
+        .padding(.top, 6)
+        .offset(y: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = max(0, value.translation.height)
+                }
+                .onEnded { value in
+                    if value.translation.height > 60 {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                            isPresented = false
+                        }
+                    }
+                    dragOffset = 0
+                }
+        )
+    }
+}
+
+private struct SettingsToggleChip: View {
+    let title: String
+    @Binding var isOn: Bool
+    var onToggle: ((Bool) -> Void)? = nil
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+            if isOn {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
+            onToggle?(isOn)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                Text(title)
+                    .font(.subheadline).bold()
+            }
+            .foregroundStyle(isOn ? .primary : .secondary)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+}
+
+// MARK: - Sound helper
+
+final class DiceSoundPlayer {
+    static let shared = DiceSoundPlayer()
+    private var player: AVAudioPlayer?
+
+    func playRoll(volume: Double) {
+        let clamped = max(0.0, min(volume, 1.0))
+        guard clamped > 0 else { return }
+
+        if player == nil {
+            if let url = Bundle.main.url(forResource: "dice_roll", withExtension: "wav") {
+                player = try? AVAudioPlayer(contentsOf: url)
+                player?.prepareToPlay()
+            }
+        }
+
+        guard let player = player else { return }
+        player.currentTime = 0
+        player.volume = Float(clamped)
+        player.play()
+    }
+}
+// MARK: - Die + Helpers (unchanged below)
 
 private struct DieView: View {
     let sides: Int
@@ -316,7 +461,6 @@ private struct DieView: View {
             let s = min(geo.size.width, geo.size.height)
 
             ZStack {
-                // Body
                 RoundedRectangle(cornerRadius: s * 0.18, style: .continuous)
                     .fill(
                         LinearGradient(
@@ -330,7 +474,6 @@ private struct DieView: View {
                     )
                     .shadow(color: .black.opacity(0.15), radius: s * 0.06, x: 0, y: s * 0.05)
 
-                // For D6 draw pips; otherwise show number
                 if sides == 6 {
                     PipsSix(value: value)
                         .padding(s * 0.18)
@@ -342,14 +485,11 @@ private struct DieView: View {
             }
             .frame(width: s, height: s)
         }
-        // Roll animation (tumble + bounce, ends upright)
         .scaleEffect(scale)
         .rotation3DEffect(.degrees(rotX), axis: (x: 1, y: 0, z: 0))
         .rotation3DEffect(.degrees(rotY), axis: (x: 0, y: 1, z: 0))
         .rotationEffect(.degrees(rotZ))
-        .onChange(of: spinToken) { _, _ in
-            tumble()
-        }
+        .onChange(of: spinToken) { _, _ in tumble() }
     }
 
     private func tumble() {
@@ -370,7 +510,6 @@ private struct DieView: View {
     }
 }
 
-
 private struct PipsSix: View {
     let value: Int
 
@@ -380,12 +519,10 @@ private struct PipsSix: View {
             let h = geo.size.height
             let dot = min(w, h) * 0.18
 
-            // Closure (not a nested func) inside ViewBuilder
             let pos: (CGFloat, CGFloat) -> CGPoint = { x, y in
                 CGPoint(x: x * w, y: y * h)
             }
 
-            // Grid points (0..1)
             let TL = pos(0.20, 0.20), TR = pos(0.80, 0.20)
             let CL = pos(0.20, 0.50), CC = pos(0.50, 0.50), CR = pos(0.80, 0.50)
             let BL = pos(0.20, 0.80), BR = pos(0.80, 0.80)
@@ -413,7 +550,6 @@ private struct PipsSix: View {
         .allowsHitTesting(false)
     }
 }
-
 
 private struct ArcText: View {
     let text: String

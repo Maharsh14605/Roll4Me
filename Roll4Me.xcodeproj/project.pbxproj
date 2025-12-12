@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0199112B2ECFFF0400639076 /* spinner.wav in Resources */ = {isa = PBXBuildFile; fileRef = 0199112A2ECFFF0400639076 /* spinner.wav */; };
+		0199112D2ED007E800639076 /* shuffle.wav in Resources */ = {isa = PBXBuildFile; fileRef = 0199112C2ED007E800639076 /* shuffle.wav */; };
+		0199112F2ED00C1100639076 /* questionMark.wav in Resources */ = {isa = PBXBuildFile; fileRef = 0199112E2ED00C1100639076 /* questionMark.wav */; };
+		019911312ED00D9F00639076 /* pop.wav in Resources */ = {isa = PBXBuildFile; fileRef = 019911302ED00D9F00639076 /* pop.wav */; };
+		01AF37E52ECFEEC5009B8660 /* dice_roll.wav in Resources */ = {isa = PBXBuildFile; fileRef = 01AF37E42ECFEBA5009B8660 /* dice_roll.wav */; };
+		01AF37E92ECFF22F009B8660 /* bg_music.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 01AF37E32ECFEBA5009B8660 /* bg_music.mp3 */; };
+		01AF37EB2ECFF797009B8660 /* coin_flip.wav in Resources */ = {isa = PBXBuildFile; fileRef = 01AF37EA2ECFF797009B8660 /* coin_flip.wav */; };
 		92328E722ECADBAF00DBA0F8 /* Roll4MeWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 92328E682ECADBAC00DBA0F8 /* Roll4MeWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -52,6 +59,13 @@
 		012AF1342E919FA2005E8520 /* Roll4Me.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Roll4Me.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		012AF1412E919FA3005E8520 /* Roll4MeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Roll4MeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		012AF14B2E919FA3005E8520 /* Roll4MeUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Roll4MeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0199112A2ECFFF0400639076 /* spinner.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = spinner.wav; sourceTree = "<group>"; };
+		0199112C2ED007E800639076 /* shuffle.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = shuffle.wav; sourceTree = "<group>"; };
+		0199112E2ED00C1100639076 /* questionMark.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = questionMark.wav; sourceTree = "<group>"; };
+		019911302ED00D9F00639076 /* pop.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = pop.wav; sourceTree = "<group>"; };
+		01AF37E32ECFEBA5009B8660 /* bg_music.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = bg_music.mp3; sourceTree = "<group>"; };
+		01AF37E42ECFEBA5009B8660 /* dice_roll.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = dice_roll.wav; sourceTree = "<group>"; };
+		01AF37EA2ECFF797009B8660 /* coin_flip.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = coin_flip.wav; sourceTree = "<group>"; };
 		92328E682ECADBAC00DBA0F8 /* Roll4MeWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Roll4MeWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -59,16 +73,6 @@
 		012AF1362E919FA2005E8520 /* Roll4Me */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Roll4Me;
-			sourceTree = "<group>";
-		};
-		012AF1442E919FA3005E8520 /* Roll4MeTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Roll4MeTests;
-			sourceTree = "<group>";
-		};
-		012AF14E2E919FA3005E8520 /* Roll4MeUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Roll4MeUITests;
 			sourceTree = "<group>";
 		};
 		92328E692ECADBAC00DBA0F8 /* Roll4MeWatch Watch App */ = {
@@ -113,9 +117,8 @@
 		012AF12B2E919FA2005E8520 = {
 			isa = PBXGroup;
 			children = (
+				01AF37E22ECFEB2F009B8660 /* Audio */,
 				012AF1362E919FA2005E8520 /* Roll4Me */,
-				012AF1442E919FA3005E8520 /* Roll4MeTests */,
-				012AF14E2E919FA3005E8520 /* Roll4MeUITests */,
 				92328E692ECADBAC00DBA0F8 /* Roll4MeWatch Watch App */,
 				012AF1352E919FA2005E8520 /* Products */,
 			);
@@ -130,6 +133,20 @@
 				92328E682ECADBAC00DBA0F8 /* Roll4MeWatch Watch App.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		01AF37E22ECFEB2F009B8660 /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				019911302ED00D9F00639076 /* pop.wav */,
+				0199112E2ED00C1100639076 /* questionMark.wav */,
+				0199112C2ED007E800639076 /* shuffle.wav */,
+				0199112A2ECFFF0400639076 /* spinner.wav */,
+				01AF37EA2ECFF797009B8660 /* coin_flip.wav */,
+				01AF37E32ECFEBA5009B8660 /* bg_music.mp3 */,
+				01AF37E42ECFEBA5009B8660 /* dice_roll.wav */,
+			);
+			path = Audio;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -172,9 +189,6 @@
 			dependencies = (
 				012AF1432E919FA3005E8520 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				012AF1442E919FA3005E8520 /* Roll4MeTests */,
-			);
 			name = Roll4MeTests;
 			packageProductDependencies = (
 			);
@@ -194,9 +208,6 @@
 			);
 			dependencies = (
 				012AF14D2E919FA3005E8520 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				012AF14E2E919FA3005E8520 /* Roll4MeUITests */,
 			);
 			name = Roll4MeUITests;
 			packageProductDependencies = (
@@ -235,7 +246,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 1640;
+				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					012AF1332E919FA2005E8520 = {
 						CreatedOnToolsVersion = 16.4;
@@ -280,6 +291,13 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0199112D2ED007E800639076 /* shuffle.wav in Resources */,
+				01AF37EB2ECFF797009B8660 /* coin_flip.wav in Resources */,
+				019911312ED00D9F00639076 /* pop.wav in Resources */,
+				01AF37E52ECFEEC5009B8660 /* dice_roll.wav in Resources */,
+				0199112F2ED00C1100639076 /* questionMark.wav in Resources */,
+				01AF37E92ECFF22F009B8660 /* bg_music.mp3 in Resources */,
+				0199112B2ECFFF0400639076 /* spinner.wav in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -415,6 +433,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -472,6 +491,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -484,7 +504,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = LU33PPKMKZ;
+				DEVELOPMENT_TEAM = Z9J5FCJ325;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -497,7 +517,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.CommandLineTool.Roll4Me;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maharsh.Roll4Me;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -512,7 +532,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = LU33PPKMKZ;
+				DEVELOPMENT_TEAM = Z9J5FCJ325;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -525,7 +545,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.CommandLineTool.Roll4Me;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maharsh.Roll4Me;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -612,18 +632,18 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = LU33PPKMKZ;
+				DEVELOPMENT_TEAM = Z9J5FCJ325;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Roll4MeWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.CommandLineTool.Roll4Me;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.maharsh.Roll4Me;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.CommandLineTool.Roll4Me.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maharsh.Roll4Me.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -634,7 +654,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+				WATCHOS_DEPLOYMENT_TARGET = 11.6;
 			};
 			name = Debug;
 		};
@@ -645,18 +665,18 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = LU33PPKMKZ;
+				DEVELOPMENT_TEAM = Z9J5FCJ325;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Roll4MeWatch;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.CommandLineTool.Roll4Me;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.maharsh.Roll4Me;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.CommandLineTool.Roll4Me.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.maharsh.Roll4Me.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -667,7 +687,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+				WATCHOS_DEPLOYMENT_TARGET = 11.6;
 			};
 			name = Release;
 		};

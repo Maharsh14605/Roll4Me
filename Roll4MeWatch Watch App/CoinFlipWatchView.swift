@@ -47,8 +47,6 @@ struct CoinFlipWatchView: View {
                     Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1)
 
                     HStack {
-                        WatchHandleButton()
-                        Spacer()
                         Button("Flip") { flip() }
                             .font(.headline)
                             .padding(.horizontal, 18)
@@ -57,14 +55,20 @@ struct CoinFlipWatchView: View {
                                 Capsule()
                                     .fill(Color.yellow.opacity(0.7))
                                     .overlay(
-                                        Capsule().stroke(Color.black.opacity(0.15),
-                                                         lineWidth: 1)
+                                        Capsule().stroke(Color.black.opacity(0.15), lineWidth: 1)
                                     )
                             )
                             .buttonStyle(.plain)
                     }
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.horizontal, 6)
                     .padding(.bottom, 4)
+                    .background(
+                        Color.white.opacity(0.5)
+                            .ignoresSafeArea(edges: .bottom)
+                    )
+                    .padding(.horizontal, 6)
+                    .padding(.bottom, 5)
                     // Replaced systemBackground with plain color
                     .background(
                         Color.white.opacity(0.5)
@@ -73,7 +77,7 @@ struct CoinFlipWatchView: View {
                 }
             }
         }
-        .navigationTitle("Coin Flip")
+//        .navigationTitle("Coin Flip")
     }
 
     private func flip() {

@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import AVFoundation
 
 // MARK: - Team Generator
 struct TeamGeneratorView: View {
@@ -24,7 +25,6 @@ struct TeamGeneratorView: View {
     @State private var touches: PointsDict = [:]
 
     // Bias store: personID -> [teamIndex : weight]
-    // If no entry, weight defaults to 1 for all teams.
     @State private var biasWeights: [UUID: [Int : Int]] = [:]
 
     // Bias editor UI
@@ -34,15 +34,35 @@ struct TeamGeneratorView: View {
     @State private var biasValue: Int = 1
     @State private var showNoPeopleAlert = false
 
+    // Global settings
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    // Small settings panel
+    @State private var showSettingsPanel = false
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentationMode) private var presentationMode
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             background
+
             ScrollView { content }
+
+            // bottom settings panel
+            if showSettingsPanel {
+                TeamSettingsPanel(isPresented: $showSettingsPanel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
+                    .overlay(Divider(), alignment: .top)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
-        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(action: goHome) {
@@ -52,7 +72,7 @@ struct TeamGeneratorView: View {
                 .accessibilityLabel("Home")
             }
         }
-        // Full-width, flush bottom bar
+        // full-width bottom bar
         .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
         .sheet(item: $editing) { person in
             EditNameSheet(title: "Edit Name", text: $editText) {
@@ -64,17 +84,22 @@ struct TeamGeneratorView: View {
                 }
             }
         }
-        .sheet(isPresented: $showBiasSheet) { BiasEditor() }   // bias sheet
-        .alert("Add at least one name first", isPresented: $showNoPeopleAlert) { Button("OK", role: .cancel) {} }
+        .sheet(isPresented: $showBiasSheet) { BiasEditor() }
+        .alert("Add at least one name first", isPresented: $showNoPeopleAlert) {
+            Button("OK", role: .cancel) {}
+        }
     }
 
     // MARK: UI
 
     private var background: some View {
         LinearGradient(
-            colors: [ Color(red: 214/255, green: 235/255, blue: 210/255),
-                      Color(red: 230/255, green: 245/255, blue: 225/255) ],
-            startPoint: .topLeading, endPoint: .bottomTrailing
+            colors: [
+                Color(red: 214/255, green: 235/255, blue: 210/255),
+                Color(red: 230/255, green: 245/255, blue: 225/255)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
         )
         .ignoresSafeArea()
     }
@@ -85,12 +110,14 @@ struct TeamGeneratorView: View {
             HStack(spacing: 12) {
                 Text("Teams")
                     .font(.title3).bold()
-                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                Button { if teamsCount > 1 { teamsCount -= 1 } }
-                label: { ControlCapsule(symbol: "minus") }
+                Button { if teamsCount > 1 { teamsCount -= 1 } } label: {
+                    ControlCapsule(symbol: "minus")
+                }
 
                 Text("\(teamsCount)")
                     .font(.title3).bold()
@@ -99,8 +126,9 @@ struct TeamGeneratorView: View {
                     .background(.ultraThinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                Button { teamsCount += 1 }
-                label: { ControlCapsule(symbol: "plus") }
+                Button { teamsCount += 1 } label: {
+                    ControlCapsule(symbol: "plus")
+                }
             }
 
             // Input row
@@ -121,7 +149,8 @@ struct TeamGeneratorView: View {
                     ForEach(people) { p in
                         Text(p.name)
                             .font(.subheadline).bold()
-                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
                             .background(Color(white: 0.96))
                             .clipShape(Capsule())
                             .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
@@ -145,29 +174,38 @@ struct TeamGeneratorView: View {
                 if !teams.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         ForEach(teams.indices, id: \.self) { t in
-                            TeamCard(title: "Team \(t+1)",
-                                     names: teams[t].map(\.name),
-                                     tint: teamTint(t))
+                            TeamCard(
+                                title: "Team \(t+1)",
+                                names: teams[t].map(\.name),
+                                tint: teamTint(t)
+                            )
                         }
                     }
                 }
             } else {
-                // Finger mode (visual only; you said no team split needed here)
+                // Finger mode
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Place Your Finger").font(.title2).bold()
                     Text("Use multiple fingers. Colors distinguish teams automatically.")
-                        .font(.subheadline).foregroundStyle(.secondary)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
 
                     ZStack {
                         RoundedRectangle(cornerRadius: 16).fill(.ultraThinMaterial)
-                        TouchCaptureView(points: $touches)
+                        TouchCaptureView(points: $touches, hapticsOn: hapticsOn)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
 
                         GeometryReader { _ in
-                            ForEach(Array(touches.keys), id: \.self) { key in
+                            // assign team colors based on index, limited by teamsCount
+                            let keys = Array(touches.keys).sorted()
+                            let palette = teamCirclePalette()
+                            let clampedTeams = max(1, min(teamsCount, palette.count))
+
+                            ForEach(Array(keys.enumerated()), id: \.element) { (index, key) in
                                 if let info = touches[key] {
+                                    let color = palette[index % clampedTeams]
                                     Circle()
-                                        .fill(circleColor(for: key))
+                                        .fill(color)
                                         .frame(width: info.radius, height: info.radius)
                                         .position(info.point)
                                         .shadow(radius: 3, y: 1)
@@ -175,34 +213,41 @@ struct TeamGeneratorView: View {
                             }
                         }
                     }
-                    .frame(height: 260)
+                    // Larger zone – fills most of screen until bottom toolbar
+                    .frame(minHeight: UIScreen.main.bounds.height * 0.55)
                 }
             }
         }
         .padding(18)
     }
 
-    // Bottom bar
+    // MARK: Bottom bar – full width & under home indicator
     private var bottomBar: some View {
-        ZStack {
-            // Solid, full width background
+        VStack(spacing: 0) {
             Rectangle()
-                .fill(.ultraThinMaterial)
-                .frame(height: 86)
-                .overlay(Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1), alignment: .top)
-                .ignoresSafeArea()
+                .fill(Color.black.opacity(0.12))
+                .frame(height: 1)
 
             HStack {
-                HandleButton()
+                // Handle opens/closes settings panel
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                        showSettingsPanel.toggle()
+                    }
+                } label: {
+                    HandleButton()
+                }
 
                 Spacer()
 
                 Button(action: sortNow) {
                     Text("Sort")
                         .font(.headline)
-                        .padding(.horizontal, 28).padding(.vertical, 10)
+                        .padding(.horizontal, 28)
+                        .padding(.vertical, 10)
                         .background(
-                            Capsule().fill(Color(white: 0.98))
+                            Capsule()
+                                .fill(Color(white: 0.98))
                                 .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
                         )
                 }
@@ -210,10 +255,10 @@ struct TeamGeneratorView: View {
 
                 Spacer()
 
-                // OPEN BIAS EDITOR
                 Button {
-                    if people.isEmpty { showNoPeopleAlert = true }
-                    else {
+                    if people.isEmpty {
+                        showNoPeopleAlert = true
+                    } else {
                         biasPersonID = people.first?.id
                         biasTeamIndex = 0
                         biasValue = currentBiasValue(for: people.first!.id, team: 0)
@@ -229,18 +274,19 @@ struct TeamGeneratorView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
+            .padding(.bottom, 12)
         }
+        .background(.ultraThinMaterial)
+        .ignoresSafeArea(edges: .bottom)
     }
 
     // MARK: Actions
 
     private func goHome() {
-        // 1) Try popping to root (works when inside UINavigationController)
         if let nav = UIApplication.shared.topNavigationController() {
             nav.popToRootViewController(animated: true)
             return
         }
-        // 2) SwiftUI fallbacks
         dismiss()
         presentationMode.wrappedValue.dismiss()
     }
@@ -248,7 +294,9 @@ struct TeamGeneratorView: View {
     private func addName() {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        if hapticsOn {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
         let p = Person(name: trimmed)
         people.append(p)
         input = ""
@@ -257,30 +305,39 @@ struct TeamGeneratorView: View {
     }
 
     private func sortNow() {
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-
         guard !people.isEmpty else { return }
+
+        if hapticsOn {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        }
+
+        // 🔊 play team sort sound
+        if soundOn {
+            TeamSortSoundPlayer.shared.play(volume: volume)
+        }
 
         // capacity per team (balanced)
         let n = people.count
         var cap = Array(repeating: n / teamsCount, count: teamsCount)
         for i in 0..<(n % teamsCount) { cap[i] += 1 }
 
-        var result = Array(repeating: [Person](), count: teamsCount)
+        var newTeams = Array(repeating: [Person](), count: teamsCount)
 
         for person in people.shuffled() {
-            let remainingTeams = (0..<teamsCount).filter { result[$0].count < cap[$0] }
+            let remainingTeams = (0..<teamsCount).filter { newTeams[$0].count < cap[$0] }
             let weights = remainingTeams.map { teamWeight(for: person.id, team: $0) }
             let chosenIndex = weightedChoice(indices: remainingTeams, weights: weights)
-            result[chosenIndex].append(person)
+            newTeams[chosenIndex].append(person)
         }
 
-        teams = result
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            teams = newTeams
+        }
     }
 
     // Bias helpers
     private func teamWeight(for id: UUID, team: Int) -> Int {
-        max(1, biasWeights[id]?[team] ?? 1) // default 1
+        max(1, biasWeights[id]?[team] ?? 1)
     }
     private func currentBiasValue(for id: UUID, team: Int) -> Int {
         biasWeights[id]?[team] ?? 1
@@ -306,10 +363,17 @@ struct TeamGeneratorView: View {
                                 .orange.opacity(0.18), .pink.opacity(0.18), .green.opacity(0.18)]
         return palette[i % palette.count]
     }
-    private func circleColor(for key: Int) -> Color {
-        let colors: [Color] = [.gray.opacity(0.5), .blue.opacity(0.65), .red.opacity(0.65),
-                               .purple.opacity(0.65), .green.opacity(0.65), .orange.opacity(0.65)]
-        return colors[abs(key) % colors.count]
+
+    // Base palette for finger circles
+    private func teamCirclePalette() -> [Color] {
+        [
+            .blue.opacity(0.75),
+            .red.opacity(0.75),
+            .green.opacity(0.75),
+            .orange.opacity(0.75),
+            .purple.opacity(0.75),
+            .pink.opacity(0.75)
+        ]
     }
 
     // MARK: Bias editor sheet
@@ -351,15 +415,14 @@ struct TeamGeneratorView: View {
                 }
             }
             .onAppear {
-                // initialize from current person/team
                 if biasPersonID == nil { biasPersonID = people.first?.id }
                 if let id = biasPersonID { biasValue = currentBiasValue(for: id, team: biasTeamIndex) }
             }
-            .onChange(of: biasPersonID) { id in
-                if let id { biasValue = currentBiasValue(for: id, team: biasTeamIndex) }
+            .onChange(of: biasPersonID) { _, newID in
+                if let id = newID { biasValue = currentBiasValue(for: id, team: biasTeamIndex) }
             }
-            .onChange(of: biasTeamIndex) { _ in
-                if let id = biasPersonID { biasValue = currentBiasValue(for: id, team: biasTeamIndex) }
+            .onChange(of: biasTeamIndex) { _, newTeam in
+                if let id = biasPersonID { biasValue = currentBiasValue(for: id, team: newTeam) }
             }
         }
     }
@@ -407,6 +470,87 @@ private struct HandleButton: View {
         .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(radius: 2, y: 1)
+    }
+}
+
+// MARK: Settings panel + chips
+
+private struct TeamSettingsPanel: View {
+    @Binding var isPresented: Bool
+
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    @State private var dragOffset: CGFloat = 0
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(width: 44, height: 5)
+                .padding(.top, 8)
+
+            HStack(spacing: 12) {
+                Image(systemName: "speaker.wave.2.fill")
+                Slider(value: $volume, in: 0...1)
+                    .disabled(!soundOn)
+                    .opacity(soundOn ? 1.0 : 0.4)
+            }
+            .padding(.horizontal, 18)
+
+            HStack(spacing: 14) {
+                SettingsToggleChip(title: "Haptics", isOn: $hapticsOn)
+
+                SettingsToggleChip(title: "Sound", isOn: $soundOn) { newValue in
+                    if !newValue { volume = 0 }
+                }
+            }
+            .padding(.horizontal, 18)
+
+            Spacer(minLength: 8)
+        }
+        .padding(.top, 6)
+        .offset(y: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = max(0, value.translation.height)
+                }
+                .onEnded { value in
+                    if value.translation.height > 60 {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                            isPresented = false
+                        }
+                    }
+                    dragOffset = 0
+                }
+        )
+    }
+}
+
+private struct SettingsToggleChip: View {
+    let title: String
+    @Binding var isOn: Bool
+    var onToggle: ((Bool) -> Void)? = nil
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onToggle?(isOn)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                Text(title)
+                    .font(.subheadline).bold()
+            }
+            .foregroundStyle(isOn ? .primary : .secondary)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
     }
 }
 
@@ -468,21 +612,26 @@ private struct EditNameSheet: View {
     }
 }
 
-// MARK: Touch capture (bigger circles)
+// MARK: Touch capture (bigger circles, less “jittery” removal)
 
 private struct TouchCaptureView: UIViewRepresentable {
     @Binding var points: TeamGeneratorView.PointsDict
+    var hapticsOn: Bool
 
     func makeUIView(context: Context) -> TouchView {
         let v = TouchView()
+        v.hapticsOn = hapticsOn
         v.onUpdate = { pts in DispatchQueue.main.async { self.points = pts } }
         return v
     }
-    func updateUIView(_ uiView: TouchView, context: Context) {}
+    func updateUIView(_ uiView: TouchView, context: Context) {
+        uiView.hapticsOn = hapticsOn
+    }
 
     final class TouchView: UIView {
         var onUpdate: ((TeamGeneratorView.PointsDict) -> Void)?
         private var pts: TeamGeneratorView.PointsDict = [:]
+        var hapticsOn: Bool = true
 
         override init(frame: CGRect) {
             super.init(frame: frame)
@@ -496,25 +645,53 @@ private struct TouchCaptureView: UIViewRepresentable {
         }
 
         override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            if hapticsOn {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
             update(touches, removing: false)
         }
-        override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches, removing: false) }
-        override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches, removing: true) }
-        override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches, removing: true) }
+        override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
+            update(touches, removing: false)
+        }
+        override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+            update(touches, removing: true)
+        }
+        override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+            update(touches, removing: true)
+        }
 
         private func update(_ touches: Set<UITouch>, removing: Bool) {
-            for t in touches {
-                let key = t.hash
-                if removing {
-                    pts.removeValue(forKey: key)
-                } else {
+            if removing {
+                for t in touches {
+                    let key = t.hash
+                    let oldInfo = pts[key]
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                        guard let self = self else { return }
+                        if let current = self.pts[key],
+                           current.point == oldInfo?.point {
+                            self.pts.removeValue(forKey: key)
+                            self.onUpdate?(self.pts)
+                        }
+                    }
+                }
+            } else {
+                for t in touches {
+                    let key = t.hash
                     let p = t.location(in: self)
-                    let r = max(54, t.majorRadius.isNormal ? t.majorRadius * 2.2 : 56) // nice big touch dots
+
+                    let baseRadius: CGFloat
+                    if t.majorRadius.isNormal {
+                        baseRadius = t.majorRadius * 4.0
+                    } else {
+                        baseRadius = 96
+                    }
+                    let r = max(96, baseRadius)
+
                     pts[key] = TeamGeneratorView.TouchInfo(point: p, radius: r)
                 }
+                onUpdate?(pts)
             }
-            onUpdate?(pts)
         }
     }
 }
@@ -536,6 +713,30 @@ private extension UIViewController {
             if let nav = child.findNav() { return nav }
         }
         return navigationController
+    }
+}
+
+// MARK: - Team sort sound
+
+final class TeamSortSoundPlayer {
+    static let shared = TeamSortSoundPlayer()
+    private var player: AVAudioPlayer?
+
+    func play(volume: Double) {
+        let clamped = max(0.0, min(volume, 1.0))
+        guard clamped > 0 else { return }
+
+        if player == nil {
+            if let url = Bundle.main.url(forResource: "questionMark", withExtension: "wav") {
+                player = try? AVAudioPlayer(contentsOf: url)
+                player?.prepareToPlay()
+            }
+        }
+
+        guard let player = player else { return }
+        player.currentTime = 0
+        player.volume = Float(clamped)
+        player.play()
     }
 }
 

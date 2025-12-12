@@ -6,15 +6,16 @@
 import SwiftUI
 
 struct HomeView: View {
-    // slide-up panel state (kept if you want it later)
     @State private var showPanel = false
-    private let panelHeight: CGFloat = 300
+    private let panelHeight: CGFloat = 180     // smaller panel
 
-    // grid spacing & padding
     private let horizontalPadding: CGFloat = 20
     private let interItemSpacing: CGFloat = 22
 
-    // tools list with your asset names
+    // Drive background music from Home only
+    @AppStorage("roll4me_soundOn") private var soundOn: Bool = true
+    @AppStorage("roll4me_volume")  private var volume: Double = 0.7
+
     private var tools: [(title: String, imageName: String, destination: AnyView)] {
         [
             ("Dice Roll", "Dice", AnyView(DiceRollView())),
@@ -28,36 +29,36 @@ struct HomeView: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            // soft background
-            LinearGradient(colors: [Color(.systemYellow).opacity(0.16),
-                                    Color(.systemGreen).opacity(0.10)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(
+                colors: [Color(.systemYellow).opacity(0.16),
+                         Color(.systemGreen).opacity(0.10)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
             .ignoresSafeArea()
 
             GeometryReader { geo in
-                // adaptive tile width for 2 columns
                 let totalSpacing = interItemSpacing + (horizontalPadding * 2)
                 let tileWidth = (geo.size.width - totalSpacing) / 2
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
-                        // BIG main heading
                         Text("Roll4Me")
                             .font(.system(size: 36, weight: .heavy))
                             .padding(.top, 10)
                             .padding(.horizontal, horizontalPadding)
 
-                        // Sub-heading
                         Text("Let Fate Decide")
                             .font(.title2.weight(.bold))
                             .foregroundStyle(.primary)
                             .padding(.horizontal, horizontalPadding)
                             .padding(.bottom, 6)
 
-                        // 2-column large tiles
                         LazyVGrid(
-                            columns: [GridItem(.flexible(), spacing: interItemSpacing),
-                                      GridItem(.flexible(), spacing: interItemSpacing)],
+                            columns: [
+                                GridItem(.flexible(), spacing: interItemSpacing),
+                                GridItem(.flexible(), spacing: interItemSpacing)
+                            ],
                             spacing: interItemSpacing
                         ) {
                             ForEach(tools, id: \.title) { tool in
@@ -67,12 +68,12 @@ struct HomeView: View {
                             }
                         }
                         .padding(.horizontal, horizontalPadding)
-                        .padding(.bottom, 120) // space for handle/panel if used
+                        .padding(.bottom, 120)
                     }
                 }
             }
 
-            // three-line handle (kept minimal; toggles panel)
+            // handle button – toggles panel
             Button {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                     showPanel.toggle()
@@ -91,9 +92,8 @@ struct HomeView: View {
             .padding(.leading, 16)
             .padding(.bottom, showPanel ? (panelHeight + 16) : 16)
 
-            // slide-up panel (optional – content placeholder)
             if showPanel {
-                AccessPanel()
+                AccessPanel(isPresented: $showPanel)
                     .frame(maxWidth: .infinity)
                     .frame(height: panelHeight)
                     .background(.ultraThinMaterial)
@@ -104,8 +104,24 @@ struct HomeView: View {
                     .padding(.bottom, 0)
             }
         }
-        .navigationBarTitleDisplayMode(.inline) // we use custom big title in content
-        .toolbar { ToolbarItem(placement: .principal) { EmptyView() } } // hide nav title
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) { EmptyView() }
+        }
+        // MARK: Background music ONLY on Home
+        .onAppear {
+            BackgroundMusicPlayer.shared.update(soundOn: soundOn, volume: volume)
+        }
+        .onChange(of: soundOn) { _, newValue in
+            BackgroundMusicPlayer.shared.update(soundOn: newValue, volume: volume)
+        }
+        .onChange(of: volume) { _, newValue in
+            BackgroundMusicPlayer.shared.update(soundOn: soundOn, volume: newValue)
+        }
+        .onDisappear {
+            // Stop bg music when leaving Home (Dice, Spinner, etc.)
+            BackgroundMusicPlayer.shared.stop()
+        }
     }
 }
 
@@ -114,7 +130,6 @@ private struct ToolTileLarge: View {
     let size: CGFloat
     var body: some View {
         ZStack {
-            // soft outer shadow
             RoundedRectangle(cornerRadius: 26, style: .continuous)
                 .fill(Color.clear)
                 .shadow(color: .black.opacity(0.14), radius: 8, x: 0, y: 6)
@@ -125,60 +140,86 @@ private struct ToolTileLarge: View {
                 .frame(width: size, height: size)
                 .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         }
-        // make tap target comfy
         .frame(width: size, height: size)
     }
 }
+// MARK: - Slim Access Panel (Volume + Haptics + Sound)
 
 private struct AccessPanel: View {
-    @State private var volume: Double = 0.7
-    @State private var hapticsOn = true
-    @State private var animationsOn = true
+    @Binding var isPresented: Bool
+
+    @AppStorage("roll4me_volume") private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    @State private var dragOffset: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 16) {
-            Capsule().fill(Color.secondary.opacity(0.25))
+            Capsule()
+                .fill(Color.secondary.opacity(0.25))
                 .frame(width: 44, height: 5)
                 .padding(.top, 8)
 
+            // Volume row
             HStack(spacing: 12) {
                 Image(systemName: "speaker.wave.2.fill")
                 Slider(value: $volume, in: 0...1)
+                    .disabled(!soundOn)        // lock slider when sound off
+                    .opacity(soundOn ? 1.0 : 0.4)
             }
             .padding(.horizontal, 18)
 
+            // Haptics + Sound toggles
             HStack(spacing: 14) {
                 ToggleChip(title: "Haptics", isOn: $hapticsOn)
-                ToggleChip(title: "Animations", isOn: $animationsOn)
+
+                ToggleChip(title: "Sound", isOn: $soundOn) { newValue in
+                    if !newValue {
+                        volume = 0          // turning sound OFF → set volume to 0
+                    }
+                }
             }
             .padding(.horizontal, 18)
 
-            HStack(spacing: 12) {
-                PanelButton("Presets")
-                PanelButton("History")
-            }
-            .padding(.horizontal, 18)
-
-            PanelButton("Tutorial / How To Use")
-                .padding(.horizontal, 18)
-
-            Spacer()
+            Spacer(minLength: 8)
         }
         .padding(.top, 6)
+        // swipe down to close
+        .offset(y: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = max(0, value.translation.height)
+                }
+                .onEnded { value in
+                    if value.translation.height > 60 {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                            isPresented = false
+                        }
+                    }
+                    dragOffset = 0
+                }
+        )
     }
 }
 
+// Reusable chip – optional onToggle for custom behavior (used for Sound)
 private struct ToggleChip: View {
     let title: String
     @Binding var isOn: Bool
+    var onToggle: ((Bool) -> Void)? = nil
+
     var body: some View {
         Button {
             isOn.toggle()
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onToggle?(isOn)
         } label: {
             HStack(spacing: 8) {
                 Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                Text(title).font(.subheadline).bold()
+                Text(title)
+                    .font(.subheadline).bold()
             }
             .foregroundStyle(isOn ? .primary : .secondary)
             .padding(.vertical, 10)
@@ -186,19 +227,6 @@ private struct ToggleChip: View {
             .background(.thinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-    }
-}
-
-private struct PanelButton: View {
-    let title: String
-    init(_ title: String) { self.title = title }
-    var body: some View {
-        Button(title) {}
-            .font(.subheadline).bold()
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(.thinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

@@ -5,7 +5,7 @@ struct HomeWatchView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Randomizers") {
+                Section("Let Fate Decide") {
                     NavigationLink {
                         DiceRollWatchView()
                     } label: {
@@ -26,25 +26,9 @@ struct HomeWatchView: View {
                         )
                     }
 
-                    NavigationLink {
-                        SpinnerWatchView()
-                    } label: {
-                        menuRow(
-                            title: "Spinner",
-                            subtitle: "Spin a color wheel",
-                            systemImage: "arrow.triangle.2.circlepath"
-                        )
-                    }
+           
 
-                    NavigationLink {
-                        RandomOrderWatchView()
-                    } label: {
-                        menuRow(
-                            title: "Random Order",
-                            subtitle: "Shuffle a list",
-                            systemImage: "list.number"
-                        )
-                    }
+                
 
                     NavigationLink {
                         RandomPersonWatchView()   // your finger chooser version
@@ -81,7 +65,6 @@ struct HomeWatchView: View {
         .padding(.vertical, 4)
     }
 }
-
 #Preview {
     HomeWatchView()
 }

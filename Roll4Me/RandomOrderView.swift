@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 struct RandomOrderView: View {
     // Input + data
@@ -11,11 +12,19 @@ struct RandomOrderView: View {
     @State private var editText: String = ""
     @FocusState private var inputFocused: Bool
 
+    // Global settings (shared keys with other tools)
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    // Settings panel
+    @State private var showSettingsPanel = false
+
     // Simple layout helper for chips
     private let columns = [GridItem(.adaptive(minimum: 130), spacing: 8)]
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             background
 
             VStack(spacing: 16) {
@@ -27,6 +36,18 @@ struct RandomOrderView: View {
                 Spacer(minLength: 8)
             }
             .padding(18)
+
+            // Small bottom settings panel
+            if showSettingsPanel {
+                RandomOrderSettingsPanel(isPresented: $showSettingsPanel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
+                    .overlay(Divider(), alignment: .top)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         // Edit sheet
         .sheet(isPresented: Binding(
@@ -43,9 +64,13 @@ struct RandomOrderView: View {
                 editingIndex = nil
             }
         }
-        // Full-width bottom bar like TeamGeneratorView
+        // Full-width bottom bar
         .safeAreaInset(edge: .bottom, spacing: 0) {
             bottomBar
+        }
+        // Shake to shuffle (uses haptics inside shuffleNow)
+        .onShake {
+            shuffleNow()
         }
     }
 
@@ -168,22 +193,24 @@ struct RandomOrderView: View {
         .frame(height: 260)
     }
 
-    // Bottom bar – matches TeamGenerator style (handle + centered Sort)
+    // MARK: - Bottom bar
+
     private var bottomBar: some View {
-        ZStack {
+        VStack(spacing: 0) {
+            // top divider line
             Rectangle()
-                .fill(.ultraThinMaterial)
-                .frame(height: 86)
-                .overlay(
-                    Rectangle()
-                        .fill(Color.black.opacity(0.12))
-                        .frame(height: 1),
-                    alignment: .top
-                )
-                .ignoresSafeArea()
+                .fill(Color.black.opacity(0.12))
+                .frame(height: 1)
 
             HStack {
-                HandleButton()
+                // Handle opens/closes settings panel
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                        showSettingsPanel.toggle()
+                    }
+                } label: {
+                    HandleButton()
+                }
 
                 Spacer()
 
@@ -203,8 +230,11 @@ struct RandomOrderView: View {
                 Spacer()
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 12)
         }
+        .background(.ultraThinMaterial)
+        .ignoresSafeArea(edges: .bottom)
     }
 
     // MARK: - Actions
@@ -212,6 +242,9 @@ struct RandomOrderView: View {
     private func addCurrent() {
         let trimmed = itemInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        if hapticsOn {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
         items.append(trimmed)
         itemInput = ""
         result = []
@@ -220,8 +253,98 @@ struct RandomOrderView: View {
 
     private func shuffleNow() {
         guard !items.isEmpty else { return }
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        result = items.shuffled()
+        if hapticsOn {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        }
+        if soundOn {
+                RandomOrderSoundPlayer.shared.playShuffle(volume: volume)
+            }
+        result = []
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
+                result = items.shuffled()
+            }
+    }
+}
+
+// MARK: - Settings panel for RandomOrderView
+
+private struct RandomOrderSettingsPanel: View {
+    @Binding var isPresented: Bool
+
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    @State private var dragOffset: CGFloat = 0
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(width: 44, height: 5)
+                .padding(.top, 8)
+
+            HStack(spacing: 12) {
+                Image(systemName: "speaker.wave.2.fill")
+                Slider(value: $volume, in: 0...1)
+                    .disabled(!soundOn)
+                    .opacity(soundOn ? 1.0 : 0.4)
+            }
+            .padding(.horizontal, 18)
+
+            HStack(spacing: 14) {
+                RandomOrderToggleChip(title: "Haptics", isOn: $hapticsOn)
+
+                RandomOrderToggleChip(title: "Sound", isOn: $soundOn) { newValue in
+                    if !newValue { volume = 0 }
+                }
+            }
+            .padding(.horizontal, 18)
+
+            Spacer(minLength: 8)
+        }
+        .padding(.top, 6)
+        .background(.clear)
+        .offset(y: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = max(0, value.translation.height)
+                }
+                .onEnded { value in
+                    if value.translation.height > 60 {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                            isPresented = false
+                        }
+                    }
+                    dragOffset = 0
+                }
+        )
+    }
+}
+
+private struct RandomOrderToggleChip: View {
+    let title: String
+    @Binding var isOn: Bool
+    var onToggle: ((Bool) -> Void)? = nil
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onToggle?(isOn)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                Text(title)
+                    .font(.subheadline).bold()
+            }
+            .foregroundStyle(isOn ? .primary : .secondary)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
     }
 }
 
@@ -268,6 +391,31 @@ private struct EditNameSheet: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Sound helper for RandomOrderView
+
+final class RandomOrderSoundPlayer {
+    static let shared = RandomOrderSoundPlayer()
+    private var player: AVAudioPlayer?
+
+    func playShuffle(volume: Double) {
+        let clamped = max(0.0, min(volume, 1.0))
+        guard clamped > 0 else { return }
+
+        // Load once
+        if player == nil {
+            if let url = Bundle.main.url(forResource: "shuffle", withExtension: "wav") {
+                player = try? AVAudioPlayer(contentsOf: url)
+                player?.prepareToPlay()
+            }
+        }
+
+        guard let player = player else { return }
+        player.currentTime = 0
+        player.volume = Float(clamped)
+        player.play()
     }
 }
 

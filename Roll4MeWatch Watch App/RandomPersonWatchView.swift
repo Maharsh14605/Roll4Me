@@ -27,7 +27,7 @@ struct RandomPersonWatchView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 8) {
-                Text("Place Your Finger")
+                Text("Random Finger")
                     .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .padding(.top, 4)
 
@@ -50,7 +50,7 @@ struct RandomPersonWatchView: View {
                 chooserBubble
             }
         }
-        .navigationTitle("Random Person")
+        
         .animation(.spring(response: 0.30, dampingFraction: 0.8),
                    value: showChooserBubble)
     }

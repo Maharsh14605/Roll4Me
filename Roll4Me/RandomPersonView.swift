@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import AVFoundation
 
 struct RandomPersonView: View {
     // Touch points: UITouch.hash -> CGPoint
@@ -12,10 +13,20 @@ struct RandomPersonView: View {
     // Selection animation state
     @State private var revealedIDs: Set<Int> = []
     @State private var finalSelectedID: Int?
-    @State private var isSelecting = false
+
+    // Pulse animation for the final winner
+    @State private var winnerPulse = false
+
+    // Global settings shared across tools
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    // Settings panel
+    @State private var showSettingsPanel = false
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             background
 
             VStack(spacing: 24) {
@@ -29,13 +40,42 @@ struct RandomPersonView: View {
             if showChoosePopover {
                 choosePopover
             }
+
+            // Bottom settings panel
+            if showSettingsPanel {
+                RandomPersonSettingsPanel(isPresented: $showSettingsPanel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
+                    .overlay(Divider(), alignment: .top)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) { bottomBar }
-        .onChange(of: touches) { dict in
-            // Clamp choose count when number of fingers changes
-            let maxFingers = max(dict.count, 1)
+        .onChange(of: touches) { old, newDict in
+            let maxFingers = max(newDict.count, 1)
             if chooseCount > maxFingers { chooseCount = maxFingers }
             if chooseCount < 1 { chooseCount = 1 }
+
+            // If all fingers are removed → clear everything
+            if newDict.isEmpty {
+                revealedIDs.removeAll()
+                finalSelectedID = nil
+                winnerPulse = false
+                return
+            }
+
+            // Keep only IDs that still exist
+            let currentIDs = Set(newDict.keys)
+            revealedIDs = revealedIDs.intersection(currentIDs)
+
+            // If the winning finger was lifted, clear winner state
+            if let winner = finalSelectedID, !currentIDs.contains(winner) {
+                finalSelectedID = nil
+                winnerPulse = false
+            }
         }
     }
 
@@ -67,44 +107,55 @@ struct RandomPersonView: View {
             FingerTouchCaptureView(points: $touches)
                 .clipShape(RoundedRectangle(cornerRadius: 20))
 
-            GeometryReader { geo in
+            GeometryReader { _ in
                 ForEach(Array(touches.keys), id: \.self) { key in
                     if let pos = touches[key] {
                         let isWinner = revealedIDs.contains(key)
-                        let isFinal = finalSelectedID == key
+                        let isFinal  = finalSelectedID == key
 
-                        Circle()
-                            .fill(circleColor(for: key))
-                            .frame(width: 70, height: 70)
-                            .scaleEffect(isFinal ? 1.25 : (isWinner ? 1.08 : 1.0))
-                            .shadow(radius: 4, y: 2)
-                            .position(pos)
-                            .animation(.spring(response: 0.35, dampingFraction: 0.55),
-                                       value: revealedIDs)
-                            .animation(.spring(response: 0.4, dampingFraction: 0.6),
-                                       value: finalSelectedID)
+                        ZStack {
+                            // Bigger main dot
+                            Circle()
+                                .fill(circleColor(for: key))
+                                .frame(width: 120, height: 120)
+                                .scaleEffect(isFinal ? 1.25 : (isWinner ? 1.08 : 1.0))
+                                .shadow(radius: 4, y: 2)
+
+                            // Pulsing ring for final chosen finger
+                            if isFinal {
+                                Circle()
+                                    .stroke(Color.white.opacity(0.9), lineWidth: 6)
+                                    .frame(width: 160, height: 160)
+                                    .scaleEffect(winnerPulse ? 1.2 : 0.8)
+                                    .opacity(winnerPulse ? 0.1 : 0.45)
+                                    .blendMode(.screen)
+                            }
+                        }
+                        .position(pos)
                     }
                 }
             }
         }
-        .frame(height: 360)
+        .frame(height: 550)
     }
 
+    // MARK: - Bottom bar
+
     private var bottomBar: some View {
-        ZStack {
+        VStack(spacing: 0) {
             Rectangle()
-                .fill(.ultraThinMaterial)
-                .frame(height: 86)
-                .overlay(
-                    Rectangle()
-                        .fill(Color.black.opacity(0.14))
-                        .frame(height: 1),
-                    alignment: .top
-                )
-                .ignoresSafeArea()
+                .fill(Color.black.opacity(0.14))
+                .frame(height: 1)
 
             HStack {
-                HandleButton()
+                // Handle opens/closes settings panel
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                        showSettingsPanel.toggle()
+                    }
+                } label: {
+                    HandleButton()
+                }
 
                 Spacer()
 
@@ -120,32 +171,18 @@ struct RandomPersonView: View {
                         )
                 }
                 .buttonStyle(.plain)
-                .disabled(touches.isEmpty || isSelecting)
+                // Only disabled when there are no fingers at all
+                .disabled(touches.isEmpty)
                 .opacity(touches.isEmpty ? 0.4 : 1.0)
 
                 Spacer()
-
-                Button {
-                    if !touches.isEmpty {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
-                            showChoosePopover.toggle()
-                        }
-                    } else {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    }
-                } label: {
-                    ZStack {
-                        Circle().fill(.thinMaterial)
-                            .frame(width: 36, height: 36)
-                        Image(systemName: "plus")
-                            .font(.headline)
-                    }
-                }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 18)
             .padding(.top, 10)
+            .padding(.bottom, 12)
         }
+        .background(.ultraThinMaterial)
+        .ignoresSafeArea(edges: .bottom)
     }
 
     private var choosePopover: some View {
@@ -203,35 +240,38 @@ struct RandomPersonView: View {
         }
     }
 
-    // MARK: - Logic
-
     private func startSelection() {
         guard !touches.isEmpty else { return }
 
         let ids = Array(touches.keys)
         let k = min(max(1, chooseCount), ids.count)
+        guard k > 0 else { return }
+
+        // Pick k random winners immediately
         let winners = Array(ids.shuffled().prefix(k))
 
-        isSelecting = true
-        revealedIDs = []
-        finalSelectedID = nil
+        revealedIDs = Set(winners)
+        finalSelectedID = winners.last   // last one gets the red + pulse
 
-        var delay: Double = 0.0
-        for (idx, id) in winners.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                revealedIDs.insert(id)
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        // 🔊 play pop sound (no delay needed)
+        if soundOn {
+            RandomPersonSoundPlayer.shared.play(volume: volume)
+        }
 
-                if idx == winners.count - 1 {
-                    finalSelectedID = id
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    isSelecting = false
-                }
-            }
-            delay += 0.5
+        // restart pulsing animation
+        winnerPulse = false
+        withAnimation(
+            .easeInOut(duration: 0.9).repeatForever(autoreverses: true)
+        ) {
+            winnerPulse = true
+        }
+
+        if hapticsOn {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
     }
-
+    
     private func circleColor(for id: Int) -> Color {
         if finalSelectedID == id {
             return .red
@@ -239,6 +279,88 @@ struct RandomPersonView: View {
             return Color.blue.opacity(0.75)
         } else {
             return Color.gray.opacity(0.6)
+        }
+    }
+}
+
+// MARK: - Settings panel
+
+private struct RandomPersonSettingsPanel: View {
+    @Binding var isPresented: Bool
+
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    @State private var dragOffset: CGFloat = 0
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(width: 44, height: 5)
+                .padding(.top, 8)
+
+            HStack(spacing: 12) {
+                Image(systemName: "speaker.wave.2.fill")
+                Slider(value: $volume, in: 0...1)
+                    .disabled(!soundOn)
+                    .opacity(soundOn ? 1.0 : 0.4)
+            }
+            .padding(.horizontal, 18)
+
+            HStack(spacing: 14) {
+                RandomPersonToggleChip(title: "Haptics", isOn: $hapticsOn)
+
+                RandomPersonToggleChip(title: "Sound", isOn: $soundOn) { newValue in
+                    if !newValue { volume = 0 }
+                }
+            }
+            .padding(.horizontal, 18)
+
+            Spacer(minLength: 8)
+        }
+        .padding(.top, 6)
+        .background(.clear)
+        .offset(y: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = max(0, value.translation.height)
+                }
+                .onEnded { value in
+                    if value.translation.height > 60 {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                            isPresented = false
+                        }
+                    }
+                    dragOffset = 0
+                }
+        )
+    }
+}
+
+private struct RandomPersonToggleChip: View {
+    let title: String
+    @Binding var isOn: Bool
+    var onToggle: ((Bool) -> Void)? = nil
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onToggle?(isOn)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                Text(title)
+                    .font(.subheadline).bold()
+            }
+            .foregroundStyle(isOn ? .primary : .secondary)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 }
@@ -277,7 +399,9 @@ private struct FingerTouchCaptureView: UIViewRepresentable {
         }
 
         override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            if UserDefaults.standard.bool(forKey: "roll4me_hapticsOn") {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
             update(touches, removing: false)
         }
         override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -330,6 +454,29 @@ private struct Triangle: Shape {
     }
 }
 
+// MARK: - Random person sound
+
+final class RandomPersonSoundPlayer {
+    static let shared = RandomPersonSoundPlayer()
+    private var player: AVAudioPlayer?
+
+    func play(volume: Double) {
+        let clamped = max(0.0, min(volume, 1.0))
+        guard clamped > 0 else { return }
+
+        if player == nil {
+            if let url = Bundle.main.url(forResource: "pop", withExtension: "wav") {
+                player = try? AVAudioPlayer(contentsOf: url)
+                player?.prepareToPlay()
+            }
+        }
+
+        guard let player = player else { return }
+        player.currentTime = 0
+        player.volume = Float(clamped)
+        player.play()
+    }
+}
 // MARK: - Preview
 
 #Preview {

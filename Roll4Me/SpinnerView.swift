@@ -13,6 +13,8 @@ private struct WheelSlice: Identifiable {
     let id = UUID()
     let title: String
     let color: Color
+    let startDeg: Double   // in degrees, BEFORE wheel rotation
+    let endDeg: Double
 }
 
 @MainActor
@@ -35,7 +37,7 @@ struct SpinnerView: View {
     // SETTINGS
     @State private var segmentMultiplier: Int = 1
     @State private var eliminateAfterHit: Bool = false
-    @State private var weightedSpin: Bool = true   // default ON so you can test bias quickly
+    @State private var weightedSpin: Bool = true
 
     // SPIN STATE
     @State private var rotation: Double = 0
@@ -43,15 +45,26 @@ struct SpinnerView: View {
     @State private var selected: String = ""
     @State private var dragVelocity: Double = 0
 
+    // Haptic tick timer while spinning
+    @State private var spinHapticTimer: Timer? = nil
+
     // SPEECH (disabled in preview)
     @State private var speechAllowed = false
     private let speech = SFSpeechRecognizer()
-    
+
     private let wheelSize: CGFloat = 320
-    
+
+    // Global settings (shared with other tools)
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    // Small settings panel
+    @State private var showSettingsPanel = false
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentationMode) private var presentationMode
-    
+
     var body: some View {
         ZStack {
             Color(red: 205/255, green: 232/255, blue: 241/255).ignoresSafeArea()
@@ -80,10 +93,11 @@ struct SpinnerView: View {
                                 .onEnded { _ in spin(by: dragVelocity); dragVelocity = 0 }
                         )
 
-                    Image(systemName: "triangle.fill")
-                        .rotationEffect(.degrees(180))
-                        .foregroundStyle(.red)
-                        .offset(y: -(wheelSize / 2) - 10)
+                    Triangle()
+                        .fill(Color.yellow)
+                        .frame(width: 30, height: 18)
+                        .shadow(color: .black.opacity(0.18), radius: 3, y: 2)
+                        .offset(y: -(wheelSize / 2) - 4)
                 }
                 .frame(maxHeight: .infinity)
 
@@ -91,19 +105,28 @@ struct SpinnerView: View {
             }
 
             if showEditor { editorBubble }
-        }
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: goHome) {
-                    Image(systemName: "house.fill").font(.title3)
-                }
-                .tint(.primary)
-                .accessibilityLabel("Home")
+
+            // Small bottom settings panel
+            if showSettingsPanel {
+                SpinnerSettingsPanel(isPresented: $showSettingsPanel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
+                    .overlay(Divider(), alignment: .top)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
 
+    
         .animation(.spring(response: 0.35, dampingFraction: 0.9), value: showEditor)
+        .onDisappear {
+            // make sure timer dies if you leave the screen
+            spinHapticTimer?.invalidate()
+            spinHapticTimer = nil
+        }
     }
 
     // MARK: Bottom bar
@@ -112,8 +135,17 @@ struct SpinnerView: View {
             Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1)
 
             HStack {
-                HandleButton()
+                // Handle toggles settings panel
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                        showSettingsPanel.toggle()
+                    }
+                } label: {
+                    HandleButton()
+                }
+
                 Spacer()
+
                 Button { spin() } label: {
                     Text("Spin")
                         .font(.system(size: 20, weight: .semibold))
@@ -124,8 +156,14 @@ struct SpinnerView: View {
                         )
                 }
                 .buttonStyle(.plain)
+
                 Spacer()
-                Button { showEditor.toggle() } label: {
+
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                        showEditor.toggle()
+                    }
+                } label: {
                     ZStack {
                         Circle().fill(.thinMaterial).frame(width: 40, height: 40)
                         Image(systemName: showEditor ? "xmark" : "plus").font(.headline)
@@ -143,21 +181,19 @@ struct SpinnerView: View {
         .background(Color(UIColor.systemYellow).opacity(0.22))
         .ignoresSafeArea(edges: .bottom)
     }
-    
+
     // MARK: Actions
 
     private func goHome() {
-        // 1) Try popping to root (works when inside UINavigationController)
         if let nav = UIApplication.shared.topNavigationController() {
             nav.popToRootViewController(animated: true)
             return
         }
-        // 2) SwiftUI fallbacks
         dismiss()
         presentationMode.wrappedValue.dismiss()
     }
-    
-    // MARK: Editor bubble (now truly scrollable & taller)
+
+    // MARK: Editor bubble
     private var editorBubble: some View {
         SpeechBubble {
             VStack(spacing: 10) {
@@ -189,7 +225,6 @@ struct SpinnerView: View {
                     }
                 }
 
-                // Larger, scrollable list (up to ~40% screen height)
                 ScrollView {
                     VStack(spacing: 8) {
                         let totalW = max(1, options.map { max(0, $0.weight) }.reduce(0, +))
@@ -198,13 +233,16 @@ struct SpinnerView: View {
                                 TextField("Option", text: $opt.title)
                                     .textFieldStyle(.roundedBorder)
 
-                                // Probability preview
-                                let p = Int(round(100.0 * Double(max(0, opt.weight)) / Double(totalW)))
+                                let p = Int(
+                                    round(
+                                        100.0 * Double(max(0, opt.weight * segmentMultiplier)) /
+                                        Double(max(1, totalW * segmentMultiplier))
+                                    )
+                                )
                                 Text("p \(p)%")
                                     .font(.caption).monospacedDigit()
                                     .frame(width: 54, alignment: .trailing)
 
-                                // Weight stepper (0..20)
                                 Stepper(value: $opt.weight, in: 0...20) {
                                     Text("w \(opt.weight)")
                                         .font(.caption).monospacedDigit()
@@ -220,7 +258,7 @@ struct SpinnerView: View {
                     }
                     .padding(.bottom, 2)
                 }
-                .frame(maxHeight: max(220, UIScreen.main.bounds.height * 0.4)) // <<< taller & scrollable
+                .frame(maxHeight: max(220, UIScreen.main.bounds.height * 0.4))
 
                 HStack {
                     Toggle("Weighted", isOn: $weightedSpin)
@@ -245,48 +283,58 @@ struct SpinnerView: View {
         .transition(.scale.combined(with: .opacity))
     }
 
-    // MARK: Build slices (proportional to weights when ON)
+    // MARK: Build slices – one contiguous wedge per option
     private func buildSlices() -> [WheelSlice] {
         let valid = options
-            .map { SpinOption(title: $0.title.trimmingCharacters(in: .whitespacesAndNewlines), weight: max(0, $0.weight)) }
+            .map { SpinOption(title: $0.title.trimmingCharacters(in: .whitespacesAndNewlines),
+                              weight: max(0, $0.weight)) }
             .filter { !$0.title.isEmpty }
 
         if valid.isEmpty {
-            return [WheelSlice(title: "Add options", color: .gray)]
+            return [WheelSlice(title: "Add options",
+                               color: .gray,
+                               startDeg: -90,
+                               endDeg: 270)]
         }
 
-        // Palette
-        let baseColors: [Color] = (0..<valid.count).map { i in
-            let hue = Double(i) / Double(valid.count)
-            return Color(hue: hue, saturation: 0.75, brightness: 0.98)
-        }
+        let palette: [Color] = [
+            Color(red: 0.98, green: 0.62, blue: 0.62),
+            Color(red: 0.99, green: 0.80, blue: 0.64),
+            Color(red: 0.64, green: 0.86, blue: 0.82),
+            Color(red: 0.69, green: 0.72, blue: 0.95),
+            Color(red: 0.96, green: 0.73, blue: 0.88),
+            Color(red: 0.60, green: 0.83, blue: 0.63)
+        ]
 
-        // Equal or weighted
-        let weights = weightedSpin ? valid.map(\.weight) : Array(repeating: 1, count: valid.count)
+        let baseColors: [Color] = (0..<valid.count).map { palette[$0 % palette.count] }
+
+        let rawWeights: [Int] = weightedSpin
+            ? valid.map(\.weight)
+            : Array(repeating: 1, count: valid.count)
+
+        let weights = rawWeights.map { max(0, $0 * max(1, segmentMultiplier)) }
         let totalW = max(1, weights.reduce(0, +))
 
-        // Target slices
-        let target = max(valid.count, valid.count * segmentMultiplier)
-
-        // Apportion slices by largest remainder
-        var ideal = weights.map { Double($0) / Double(totalW) * Double(target) }
-        var allocated = ideal.map { Int(floor($0)) }
-        var remaining = target - allocated.reduce(0, +)
-        if remaining > 0 {
-            let order = ideal.enumerated().sorted { ($0.element - floor($0.element)) > ($1.element - floor($1.element)) }
-            for i in 0..<remaining { allocated[order[i].offset] += 1 }
-        }
-
         var slices: [WheelSlice] = []
-        for (i, opt) in valid.enumerated() {
-            let color = baseColors[i]
-            let copies = max( (weightedSpin ? allocated[i] : 1), 0 )
-            for _ in 0..<max(1, copies) {
-                slices.append(WheelSlice(title: opt.title, color: color))
-            }
+        var currentDeg: Double = -90.0
+
+        for (index, opt) in valid.enumerated() {
+            let w = max(0, weights[index])
+            guard w > 0 else { continue }
+
+            let sweep = 360.0 * Double(w) / Double(totalW)
+            let start = currentDeg
+            let end   = currentDeg + sweep
+
+            slices.append(
+                WheelSlice(title: opt.title,
+                           color: baseColors[index],
+                           startDeg: start,
+                           endDeg: end)
+            )
+            currentDeg = end
         }
 
-        if slices.isEmpty { slices = [WheelSlice(title: "Add options", color: .gray)] }
         return slices
     }
 
@@ -294,31 +342,82 @@ struct SpinnerView: View {
     private func spin(by swipeVelocity: Double = 0) {
         guard !spinning else { return }
         let slices = buildSlices()
-        guard slices.count > 0 else { return }
+        guard !slices.isEmpty else { return }
+
+        // cancel any previous tick timer
+        spinHapticTimer?.invalidate()
+        spinHapticTimer = nil
 
         spinning = true
         selected = ""
 
-        let base = Double.random(in: 900...1800)
+        // 🎵 play spinner sound
+        if soundOn {
+            SpinnerSoundPlayer.shared.playSpin(volume: volume)
+        }
+
+        // start tick haptics while spinning
+        if hapticsOn {
+            spinHapticTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { _ in
+                if !spinning || !hapticsOn {
+                    spinHapticTimer?.invalidate()
+                    spinHapticTimer = nil
+                } else {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                }
+            }
+        }
+
+        let base  = Double.random(in: 900...1800)
         let bonus = min(max(swipeVelocity * 2.0, -720), 720)
         let amount = base + bonus
 
-        withAnimation(.easeOut(duration: 2.0)) { rotation += amount }
+        withAnimation(.easeOut(duration: 1.0)) {
+            rotation += amount
+        }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            let count = max(1, slices.count)
-            let final = rotation.truncatingRemainder(dividingBy: 360)
-            let sliceAngle = 360.0 / Double(count)
-            let corrected = (360 - final + 270).truncatingRemainder(dividingBy: 360)
-            let idx = min(count - 1, Int(corrected / sliceAngle) % count)
-            let result = slices[idx].title
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            let finalRotation = rotation
+
+            func norm(_ a: Double) -> Double {
+                var x = a.truncatingRemainder(dividingBy: 360)
+                if x < 0 { x += 360 }
+                return x
+            }
+            func angleDiff(_ a: Double, _ b: Double) -> Double {
+                let d = abs(norm(a - b))
+                return d > 180 ? 360 - d : d
+            }
+
+            let pointerAngle = -90.0
+
+            var bestIndex = 0
+            var bestDiff = Double.greatestFiniteMagnitude
+
+            for (i, slice) in slices.enumerated() {
+                let mid = (slice.startDeg + slice.endDeg) / 2 + finalRotation
+                let diff = angleDiff(mid, pointerAngle)
+                if diff < bestDiff {
+                    bestDiff = diff
+                    bestIndex = i
+                }
+            }
+
+            let result = slices[bestIndex].title
             selected = result
 
-            if eliminateAfterHit, let pos = options.firstIndex(where: { $0.title == result }) {
+            if eliminateAfterHit,
+               let pos = options.firstIndex(where: { $0.title == result }) {
                 options.remove(at: pos)
             }
 
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            // stop tick haptics
+            spinHapticTimer?.invalidate()
+            spinHapticTimer = nil
+
+            if hapticsOn {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            }
             spinning = false
         }
     }
@@ -346,7 +445,7 @@ struct SpinnerView: View {
 
     private func startSpeechDictation() {
         guard !isPreview else { return }
-        guard speechAllowed else { return }
+        guard speechAllowed else { requestSpeechIfNeeded(); return }
         let audioEngine = AVAudioEngine()
         let request = SFSpeechAudioBufferRecognitionRequest()
         guard let recognizer = speech, recognizer.isAvailable else { return }
@@ -371,6 +470,86 @@ struct SpinnerView: View {
     }
 }
 
+// MARK: - Settings panel for spinner
+private struct SpinnerSettingsPanel: View {
+    @Binding var isPresented: Bool
+
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    @State private var dragOffset: CGFloat = 0
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(width: 44, height: 5)
+                .padding(.top, 8)
+
+            HStack(spacing: 12) {
+                Image(systemName: "speaker.wave.2.fill")
+                Slider(value: $volume, in: 0...1)
+                    .disabled(!soundOn)
+                    .opacity(soundOn ? 1.0 : 0.4)
+            }
+            .padding(.horizontal, 18)
+
+            HStack(spacing: 14) {
+                SettingsToggleChip(title: "Haptics", isOn: $hapticsOn)
+
+                SettingsToggleChip(title: "Sound", isOn: $soundOn) { newValue in
+                    if !newValue { volume = 0 }
+                }
+            }
+            .padding(.horizontal, 18)
+
+            Spacer(minLength: 8)
+        }
+        .padding(.top, 6)
+        .offset(y: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = max(0, value.translation.height)
+                }
+                .onEnded { value in
+                    if value.translation.height > 60 {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                            isPresented = false
+                        }
+                    }
+                    dragOffset = 0
+                }
+        )
+    }
+}
+
+private struct SettingsToggleChip: View {
+    let title: String
+    @Binding var isOn: Bool
+    var onToggle: ((Bool) -> Void)? = nil
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onToggle?(isOn)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                Text(title)
+                    .font(.subheadline).bold()
+            }
+            .foregroundStyle(isOn ? .primary : .secondary)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+}
+
 // MARK: - Wheel rendering
 private struct WheelView: View {
     let slices: [WheelSlice]
@@ -378,40 +557,97 @@ private struct WheelView: View {
     var body: some View {
         GeometryReader { geo in
             let size = min(geo.size.width, geo.size.height)
-            let center = CGPoint(x: size/2, y: size/2)
-            let radius = size/2
-            let count = max(1, slices.count)
-            let anglePer = 2 * Double.pi / Double(count)
 
-            Canvas { ctx, _ in
-                for (i, s) in slices.enumerated() {
-                    let start = Double(i) * anglePer
-                    let end   = start + anglePer
+            Canvas { ctx, canvasSize in
+                let rect   = CGRect(origin: .zero, size: canvasSize)
+                let center = CGPoint(x: rect.midX, y: rect.midY)
+                let radius = min(rect.width, rect.height) / 2 - 6
 
-                    var path = Path()
-                    path.move(to: center)
-                    path.addArc(center: center,
-                                radius: radius,
-                                startAngle: .radians(start),
-                                endAngle: .radians(end),
-                                clockwise: false)
-                    ctx.fill(path, with: .color(s.color))
-
-                    let mid = start + anglePer/2
-                    let lx = center.x + radius * 0.62 * CGFloat(cos(mid))
-                    let ly = center.y + radius * 0.62 * CGFloat(sin(mid))
-                    let label = Text(s.title)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.black)
-                    ctx.draw(label, at: CGPoint(x: lx, y: ly), anchor: .center)
+                // Drop shadow + base disc
+                ctx.addFilter(.shadow(color: .black.opacity(0.18),
+                                      radius: 10, x: 0, y: 6))
+                ctx.drawLayer { inner in
+                    let baseRect = CGRect(
+                        x: center.x - radius,
+                        y: center.y - radius,
+                        width: radius * 2,
+                        height: radius * 2
+                    )
+                    let baseCircle = Path(ellipseIn: baseRect)
+                    inner.fill(baseCircle, with: .color(.white))
                 }
 
-                var rim = Path()
-                rim.addEllipse(in: CGRect(x: center.x - radius, y: center.y - radius,
-                                          width: radius*2, height: radius*2))
-                ctx.stroke(rim, with: .color(.white.opacity(0.9)), lineWidth: 10)
-                ctx.stroke(rim, with: .color(.gray.opacity(0.35)), lineWidth: 2)
+                // Slices with white dividers
+                ctx.drawLayer { inner in
+                    for slice in slices {
+                        let startRad = slice.startDeg * .pi / 180
+                        let endRad   = slice.endDeg   * .pi / 180
+
+                        var wedge = Path()
+                        wedge.move(to: center)
+                        wedge.addArc(center: center,
+                                     radius: radius - 10,
+                                     startAngle: .radians(startRad),
+                                     endAngle: .radians(endRad),
+                                     clockwise: false)
+                        wedge.closeSubpath()
+
+                        inner.fill(wedge, with: .color(slice.color))
+                        inner.stroke(wedge, with: .color(.white), lineWidth: 4)
+                    }
+                }
+
+                // Labels
+                for slice in slices {
+                    let midDeg = (slice.startDeg + slice.endDeg) / 2
+                    let midRad = midDeg * .pi / 180
+                    let textRadius = radius * 0.60
+
+                    let lx = center.x + textRadius * CGFloat(cos(midRad))
+                    let ly = center.y + textRadius * CGFloat(sin(midRad))
+
+                    let labelText = Text(slice.title)
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.white)
+
+                    ctx.draw(labelText, at: CGPoint(x: lx, y: ly), anchor: .center)
+                }
+
+                // Outer rim
+                let rimRect = CGRect(
+                    x: center.x - radius,
+                    y: center.y - radius,
+                    width: radius * 2,
+                    height: radius * 2
+                )
+                let rim = Path(ellipseIn: rimRect)
+                ctx.stroke(rim, with: .color(.white), lineWidth: 10)
+                ctx.stroke(rim, with: .color(.gray.opacity(0.25)), lineWidth: 2)
+
+                // Center hub
+                let hubOuterR: CGFloat = radius * 0.26
+                let hubInnerR: CGFloat = radius * 0.18
+
+                let hubOuterRect = CGRect(
+                    x: center.x - hubOuterR,
+                    y: center.y - hubOuterR,
+                    width: hubOuterR * 2,
+                    height: hubOuterR * 2
+                )
+                let hubOuter = Path(ellipseIn: hubOuterRect)
+                ctx.fill(hubOuter, with: .color(.white))
+                ctx.stroke(hubOuter, with: .color(.gray.opacity(0.3)), lineWidth: 3)
+
+                let hubInnerRect = CGRect(
+                    x: center.x - hubInnerR,
+                    y: center.y - hubInnerR,
+                    width: hubInnerR * 2,
+                    height: hubInnerR * 2
+                )
+                let hubInner = Path(ellipseIn: hubInnerRect)
+                ctx.fill(hubInner, with: .color(.yellow))
             }
+            .frame(width: size, height: size)
         }
     }
 }
@@ -439,12 +675,12 @@ private struct ArcText: View {
                     .offset(x: x, y: y)
             }
         }
-        .frame(width: radius*2, height: radius*2)
+        .frame(width: radius * 2, height: radius * 2)
         .allowsHitTesting(false)
     }
 }
 
-// MARK: - Tiny shared views
+// MARK: - Small shared views
 private struct HandleButton: View {
     var body: some View {
         VStack(spacing: 6) {
@@ -484,7 +720,32 @@ private struct Triangle: Shape {
         p.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
         p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
         p.closeSubpath()
-        return p;
+        return p
+    }
+}
+
+// MARK: - Spinner sound helper
+final class SpinnerSoundPlayer {
+    static let shared = SpinnerSoundPlayer()
+    private var player: AVAudioPlayer?
+
+    private init() {}
+
+    func playSpin(volume: Double) {
+        let clamped = max(0.0, min(volume, 1.0))
+        guard clamped > 0 else { return }
+
+        if player == nil {
+            if let url = Bundle.main.url(forResource: "spinner", withExtension: "wav") {
+                player = try? AVAudioPlayer(contentsOf: url)
+                player?.prepareToPlay()
+            }
+        }
+
+        guard let player = player else { return }
+        player.currentTime = 0
+        player.volume = Float(clamped)
+        player.play()
     }
 }
 

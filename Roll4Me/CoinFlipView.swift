@@ -1,5 +1,11 @@
+//
+//  CoinFlipView.swift
+//  Roll4Me
+//
+
 import SwiftUI
 import CoreMotion
+import AVFoundation
 
 // MARK: - CoinFlipView
 struct CoinFlipView: View {
@@ -21,10 +27,18 @@ struct CoinFlipView: View {
 
     // Tilt-to-Flip
     @StateObject private var tilt = TiltFlipDetector()
-    
+
+    // Settings panel
+    @State private var showSettingsPanel = false
+
+    // Shared app settings
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.presentationMode) private var presentationMode
-    
+
     var body: some View {
         ZStack {
             Color(red: 216/255, green: 205/255, blue: 245/255).ignoresSafeArea()
@@ -42,12 +56,12 @@ struct CoinFlipView: View {
                     ArcText(
                         text: "Raise  to  Flip",
                         radius: 150,
-                        startAngle: -145,    // nicer centering
+                        startAngle: -145,
                         endAngle: -35,
                         fontSize: 30
                     )
 
-                    Image("coin image")      // put your PNG in Assets with this name
+                    Image("coinWithoutBorder")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 230, height: 230)
@@ -104,17 +118,22 @@ struct CoinFlipView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .transition(.scale.combined(with: .opacity))
             }
-        }
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button(action: goHome) {
-                    Image(systemName: "house.fill").font(.title3)
-                }
-                .tint(.primary)
-                .accessibilityLabel("Home")
+
+            // Settings panel (volume + haptics + sound)
+            if showSettingsPanel {
+                CoinSettingsPanel(isPresented: $showSettingsPanel)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
+                    .overlay(Divider(), alignment: .top)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .frame(maxHeight: .infinity, alignment: .bottom)
             }
         }
+
+        
         .onAppear {
             tilt.start { trigger in
                 if trigger { flipCoinWeighted() }
@@ -129,11 +148,17 @@ struct CoinFlipView: View {
     // MARK: - Bottom Bar
     private var bottomBar: some View {
         VStack(spacing: 10) {
-            // subtle divider line at top of bar
             Rectangle().fill(Color.black.opacity(0.12)).frame(height: 1)
 
             HStack {
-                HandleButton()
+                // Handle opens settings panel
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                        showSettingsPanel.toggle()
+                    }
+                } label: {
+                    HandleButton()
+                }
 
                 Spacer()
 
@@ -169,7 +194,6 @@ struct CoinFlipView: View {
             .padding(.horizontal, 18)
             .padding(.bottom, 12)
 
-            // counters
             Text("Flipped \(flipCount) times")
                 .font(.subheadline)
                 .foregroundStyle(.black.opacity(0.55))
@@ -177,32 +201,33 @@ struct CoinFlipView: View {
         }
         .background(Color(UIColor.systemYellow).opacity(0.22))
         .frame(maxWidth: .infinity, alignment: .bottom)
-        .ignoresSafeArea(edges: .bottom) // FLUSH to bottom
+        .ignoresSafeArea(edges: .bottom)
     }
-    
+
     // MARK: Actions
 
     private func goHome() {
-        // 1) Try popping to root (works when inside UINavigationController)
         if let nav = UIApplication.shared.topNavigationController() {
             nav.popToRootViewController(animated: true)
             return
         }
-        // 2) SwiftUI fallbacks
         dismiss()
         presentationMode.wrappedValue.dismiss()
     }
 
-    // MARK: - Weighted flip + animation
+    // MARK: - Weighted flip + animation + sound
     private func flipCoinWeighted() {
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        if hapticsOn {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        }
+        if soundOn {
+            CoinSoundPlayer.shared.playFlip(volume: volume)
+        }
 
-        // enforce non-negative weights
         let w1 = max(0, side1Weight)
         let w2 = max(0, side2Weight)
         let total = max(1, w1 + w2)
 
-        // sample from weights
         let r = Int.random(in: 1...total)
         let finalIsHeads = (r <= w1)
 
@@ -214,7 +239,9 @@ struct CoinFlipView: View {
             isHeads = finalIsHeads
             flipCount += 1
             isFlipping = false
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            if hapticsOn {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
         }
     }
 }
@@ -224,23 +251,146 @@ final class TiltFlipDetector: ObservableObject {
     private let manager = CMMotionManager()
     private var lastTriggerTime = Date.distantPast
 
+    // Tuning constants
+    private let pitchThreshold: Double = 0.75
+    private let speedThreshold: Double = 2.75
+    private let cooldown: TimeInterval = 1.0
+
     func start(onTrigger: @escaping (Bool) -> Void) {
         guard manager.isDeviceMotionAvailable else { return }
-        manager.deviceMotionUpdateInterval = 1.0 / 40.0
+
+        manager.deviceMotionUpdateInterval = 1.0 / 50.0
+
         manager.startDeviceMotionUpdates(to: .main) { [weak self] motion, _ in
             guard let self, let m = motion else { return }
+
             let pitch = m.attitude.pitch
-            let gravY = m.gravity.y
-            let speed = abs(m.rotationRate.y)
-            if (abs(pitch) > 0.60 || speed > 4.0 || abs(gravY) < 0.1) {
-                if Date().timeIntervalSince(self.lastTriggerTime) > 0.9 {
-                    self.lastTriggerTime = Date()
-                    onTrigger(true)
-                }
+            let rotSpeed = abs(m.rotationRate.y)
+
+            let strongUpTilt = pitch > self.pitchThreshold
+            let strongWhip   = rotSpeed > self.speedThreshold
+
+            let now = Date()
+            let shouldTrigger = strongUpTilt && strongWhip
+
+            if shouldTrigger,
+               now.timeIntervalSince(self.lastTriggerTime) > self.cooldown {
+                self.lastTriggerTime = now
+                onTrigger(true)
             }
         }
     }
-    func stop() { manager.stopDeviceMotionUpdates() }
+
+    func stop() {
+        manager.stopDeviceMotionUpdates()
+    }
+}
+
+// MARK: - Coin SFX
+
+final class CoinSoundPlayer {
+    static let shared = CoinSoundPlayer()
+    private var player: AVAudioPlayer?
+
+    func playFlip(volume: Double) {
+        let clamped = max(0.0, min(volume, 1.0))
+        guard clamped > 0 else { return }
+
+        if player == nil {
+            if let url = Bundle.main.url(forResource: "coin_flip", withExtension: "wav") {
+                player = try? AVAudioPlayer(contentsOf: url)
+                player?.prepareToPlay()
+            }
+        }
+
+        guard let player = player else { return }
+        player.currentTime = 0
+        player.volume = Float(clamped)
+        player.play()
+    }
+}
+
+// MARK: - Settings panel shared UI
+
+private struct CoinSettingsPanel: View {
+    @Binding var isPresented: Bool
+
+    @AppStorage("roll4me_volume")    private var volume: Double = 0.7
+    @AppStorage("roll4me_hapticsOn") private var hapticsOn: Bool = true
+    @AppStorage("roll4me_soundOn")   private var soundOn: Bool = true
+
+    @State private var dragOffset: CGFloat = 0
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Capsule()
+                .fill(Color.secondary.opacity(0.25))
+                .frame(width: 44, height: 5)
+                .padding(.top, 8)
+
+            HStack(spacing: 12) {
+                Image(systemName: "speaker.wave.2.fill")
+                Slider(value: $volume, in: 0...1)
+                    .disabled(!soundOn)
+                    .opacity(soundOn ? 1.0 : 0.4)
+            }
+            .padding(.horizontal, 18)
+
+            HStack(spacing: 14) {
+                SettingsToggleChip(title: "Haptics", isOn: $hapticsOn)
+
+                SettingsToggleChip(title: "Sound", isOn: $soundOn) { newValue in
+                    if !newValue { volume = 0 }
+                }
+            }
+            .padding(.horizontal, 18)
+
+            Spacer(minLength: 8)
+        }
+        .padding(.top, 6)
+        .offset(y: dragOffset)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = max(0, value.translation.height)
+                }
+                .onEnded { value in
+                    if value.translation.height > 60 {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                            isPresented = false
+                        }
+                    }
+                    dragOffset = 0
+                }
+        )
+    }
+}
+
+private struct SettingsToggleChip: View {
+    let title: String
+    @Binding var isOn: Bool
+    var onToggle: ((Bool) -> Void)? = nil
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+            if isOn {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
+            onToggle?(isOn)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                Text(title)
+                    .font(.subheadline).bold()
+            }
+            .foregroundStyle(isOn ? .primary : .secondary)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
 }
 
 // MARK: - Reusable UI
@@ -343,7 +493,7 @@ private struct Triangle: Shape {
     }
 }
 
-// Curved text where glyphs face outward (bigger + better spacing)
+// Curved text where glyphs face outward
 private struct ArcText: View {
     let text: String
     let radius: CGFloat
@@ -362,7 +512,7 @@ private struct ArcText: View {
 
                 Text(String(ch))
                     .font(.system(size: fontSize, weight: .bold, design: .rounded))
-                    .rotationEffect(.degrees(angle + 90)) // upright on arc
+                    .rotationEffect(.degrees(angle + 90))
                     .offset(x: x, y: y)
             }
         }
@@ -371,4 +521,6 @@ private struct ArcText: View {
     }
 }
 
-#Preview { NavigationStack { CoinFlipView() } }
+#Preview {
+    NavigationStack { CoinFlipView() }
+}

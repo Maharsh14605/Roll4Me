@@ -144,7 +144,7 @@ struct DiceRollWatchView: View {
             }
         }
         .onAppear { rebuildLiveDice() }
-        .navigationTitle("Dice Roll")
+//        .navigationTitle("Dice Roll")
     }
 
     private var bottomBar: some View {
